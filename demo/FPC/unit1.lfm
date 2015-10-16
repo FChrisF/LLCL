@@ -1,0 +1,376 @@
+object Form1: TForm1
+  Left = 245
+  Height = 561
+  Top = 114
+  Width = 408
+  Caption = 'LLCL - Just testing...'
+  ClientHeight = 541
+  ClientWidth = 408
+  KeyPreview = True
+  Menu = MainMenu1
+  OnCreate = FormCreate
+  OnKeyDown = FormKeyDown
+  OnKeyPress = FormKeyPress
+  OnKeyUp = FormKeyUp
+  OnMouseDown = FormMouseDown
+  OnMouseUp = FormMouseUp
+  LCLVersion = '1.4.2.0'
+  object GroupBox1: TGroupBox
+    Left = 8
+    Height = 65
+    Top = 140
+    Width = 129
+    Caption = '&GroupBox1'
+    ClientHeight = 44
+    ClientWidth = 125
+    Font.Color = clBlack
+    Font.Height = -13
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ParentFont = False
+    TabOrder = 9
+    object RadioButton1: TRadioButton
+      Left = 18
+      Height = 17
+      Top = 3
+      Width = 83
+      Caption = 'RadioButton1'
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      Font.Style = [fsItalic]
+      ParentFont = False
+      TabOrder = 0
+    end
+    object RadioButton2: TRadioButton
+      Left = 18
+      Height = 17
+      Top = 22
+      Width = 83
+      Caption = 'RadioButton2'
+      Checked = True
+      Font.Color = clBlack
+      Font.Height = -11
+      Font.Name = 'Tahoma'
+      ParentFont = False
+      TabOrder = 1
+      TabStop = True
+    end
+  end
+  object ComboBox1: TComboBox
+    Left = 8
+    Height = 21
+    Top = 12
+    Width = 133
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    ItemHeight = 13
+    Items.Strings = (
+      '11'
+      '22'
+      '44'
+      '33'
+    )
+    OnChange = ComboBox1Change
+    ParentFont = False
+    TabOrder = 0
+    Text = 'sample text'
+  end
+  object Edit1: TEdit
+    Left = 276
+    Height = 21
+    Top = 12
+    Width = 125
+    OnChange = Edit1Change
+    OnDblClick = Edit1DblClick
+    TabOrder = 12
+    Text = 'New item name'
+  end
+  object Button1: TButton
+    Left = 184
+    Height = 25
+    Top = 12
+    Width = 75
+    Caption = '&Add'
+    Font.Color = clBlack
+    Font.Height = -13
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    OnClick = Button1Click
+    ParentFont = False
+    TabOrder = 11
+  end
+  object Button3: TButton
+    Left = 184
+    Height = 25
+    Top = 44
+    Width = 75
+    Caption = '&Clear'
+    OnClick = Button3Click
+    TabOrder = 13
+  end
+  object ListBox1: TListBox
+    Left = 184
+    Height = 100
+    Top = 76
+    Width = 217
+    Font.Color = clBlack
+    Font.Height = -11
+    Font.Name = 'Tahoma'
+    Font.Style = [fsBold]
+    Items.Strings = (
+      '444'
+      '111'
+      '333'
+      '222'
+    )
+    ItemHeight = 13
+    OnDblClick = ListBox1DblClick
+    ParentFont = False
+    TabOrder = 16
+  end
+  object Memo1: TMemo
+    Left = 8
+    Height = 285
+    Top = 216
+    Width = 393
+    Lines.Strings = (
+      'asd'
+      'zxc'
+    )
+    ScrollBars = ssVertical
+    TabOrder = 17
+  end
+  object Button2: TButton
+    Left = 276
+    Height = 25
+    Top = 44
+    Width = 53
+    Caption = 'GetText'
+    OnClick = Button2Click
+    TabOrder = 14
+  end
+  object Button4: TButton
+    Left = 348
+    Height = 25
+    Top = 44
+    Width = 53
+    Caption = 'SetText'
+    OnClick = Button4Click
+    TabOrder = 15
+  end
+  object CheckBox1: TCheckBox
+    Left = 8
+    Height = 17
+    Top = 76
+    Width = 71
+    AllowGrayed = True
+    Caption = 'CheckBox1'
+    State = cbGrayed
+    TabOrder = 4
+  end
+  object Button6: TButton
+    Left = 88
+    Height = 25
+    Top = 92
+    Width = 53
+    Caption = 'Grayed'
+    OnClick = Button6Click
+    TabOrder = 7
+  end
+  object Button7: TButton
+    Left = 148
+    Height = 25
+    Top = 12
+    Width = 29
+    Caption = 'DD'
+    OnClick = Button7Click
+    TabOrder = 1
+  end
+  object Button8: TButton
+    Left = 80
+    Height = 21
+    Top = 44
+    Width = 61
+    Caption = 'Disabled'
+    Enabled = False
+    OnClick = Button8Click
+    TabOrder = 3
+  end
+  object Button9: TButton
+    Left = 144
+    Height = 25
+    Top = 180
+    Width = 33
+    Caption = 'Sh/H'
+    OnClick = Button9Click
+    TabOrder = 10
+  end
+  object Button10: TButton
+    Left = 8
+    Height = 21
+    Top = 44
+    Width = 69
+    Caption = 'Invisible!!!'
+    OnClick = Button10Click
+    TabOrder = 2
+    Visible = False
+  end
+  object CheckBox2: TCheckBox
+    Left = 8
+    Height = 17
+    Top = 96
+    Width = 71
+    Caption = 'CheckBox2'
+    Checked = True
+    State = cbChecked
+    TabOrder = 5
+  end
+  object CheckBox3: TCheckBox
+    Left = 8
+    Height = 17
+    Top = 116
+    Width = 71
+    Caption = 'CheckBox3'
+    TabOrder = 6
+  end
+  object ComboBox2: TComboBox
+    Left = 148
+    Height = 129
+    Top = 44
+    Width = 25
+    ItemHeight = 13
+    Items.Strings = (
+      '5'
+      '4'
+      '3'
+      '2'
+      '1'
+    )
+    Style = csSimple
+    TabOrder = 8
+    Text = '10'
+  end
+  object StaticText1: TStaticText
+    Left = 44
+    Height = 17
+    Top = 512
+    Width = 68
+    Alignment = taCenter
+    BorderStyle = sbsSunken
+    Caption = 'StaticText'
+    TabOrder = 18
+  end
+  object Label1: TLabel
+    Left = 8
+    Height = 13
+    Top = 512
+    Width = 25
+    Caption = 'Label'
+    ParentColor = False
+  end
+  object Button5: TButton
+    Left = 120
+    Height = 25
+    Top = 512
+    Width = 94
+    Cancel = True
+    Caption = 'Cancel Button'
+    OnClick = Button5Click
+    TabOrder = 19
+  end
+  object Button11: TButton
+    Left = 216
+    Height = 25
+    Top = 512
+    Width = 94
+    Caption = 'Default Button'
+    Default = True
+    OnClick = Button11Click
+    TabOrder = 20
+  end
+  object ProgressBar1: TProgressBar
+    Left = 320
+    Height = 16
+    Top = 516
+    Width = 81
+    TabOrder = 21
+  end
+  object StaticText2: TStaticText
+    Left = 184
+    Height = 17
+    Top = 184
+    Width = 217
+    Alignment = taCenter
+    Caption = '(Reserved for dynamic control)'
+    TabOrder = 22
+    Visible = False
+  end
+  object Timer1: TTimer
+    OnTimer = Timer1Timer
+    left = 368
+  end
+  object MainMenu1: TMainMenu
+    left = 336
+    object MenuItem1: TMenuItem
+      Caption = '&Menu1'
+      object MenuItem3: TMenuItem
+        AutoCheck = True
+        Caption = 'Menu11'
+        Checked = True
+      end
+      object MenuItem4: TMenuItem
+        Caption = 'Menu12'
+        Enabled = False
+      end
+      object MenuItem13: TMenuItem
+        Caption = '-'
+      end
+      object MenuItem11: TMenuItem
+        Caption = 'Open File...'
+        OnClick = MenuItem11Click
+      end
+      object MenuItem12: TMenuItem
+        Caption = 'Save File...'
+        OnClick = MenuItem12Click
+      end
+      object MenuItem5: TMenuItem
+        Caption = '-'
+      end
+      object MenuItem6: TMenuItem
+        Caption = 'Quit'
+        OnClick = MenuItem6Click
+      end
+    end
+    object MenuItem2: TMenuItem
+      Caption = 'M&enu2'
+      object MenuItem7: TMenuItem
+        Caption = 'Menu21'
+        OnClick = MenuItem7Click
+      end
+      object MenuItem8: TMenuItem
+        Caption = 'Menu22'
+        OnClick = MenuItem8Click
+      end
+    end
+  end
+  object PopupMenu1: TPopupMenu
+    left = 304
+    object MenuItem9: TMenuItem
+      Caption = 'Popup1'
+      OnClick = MenuItem9Click
+    end
+    object MenuItem10: TMenuItem
+      Caption = 'Popup2'
+      OnClick = MenuItem10Click
+    end
+  end
+  object OpenDialog1: TOpenDialog
+    left = 240
+  end
+  object SaveDialog1: TSaveDialog
+    left = 272
+  end
+end
