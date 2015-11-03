@@ -106,6 +106,7 @@ type
   protected
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     procedure ControlInit(RuntimeCreate: boolean); override;
+    procedure SetColor(Value: integer); override;
     procedure SetCaption(const Value: string); override;
     procedure Paint; override;
     procedure UpdateTextSize();
@@ -453,7 +454,6 @@ end;
 procedure TEdit.CreateHandle;
 begin
   inherited;
-  ApplyColor;
   fOnChangeOK := true;    // OnChange is now OK for being activated
   if fReadOnly then
     SetReadOnly(fReadOnly);
@@ -913,6 +913,12 @@ begin
   SetBounds(Left, Top, R.Right-Left, R.Bottom-Top);
 end;
 
+procedure TLabel.SetColor(Value: integer);
+begin
+  inherited;
+  InvalidateEx(not Visible);
+end;
+
 procedure TLabel.SetCaption(const Value: string);
 begin
   inherited;
@@ -995,7 +1001,6 @@ procedure TCustomBox.CreateHandle;
   var i: integer;
 begin
   inherited;
-  ApplyColor;
   for i := 0 to fItems.Strings.Count-1 do
     LLCLS_SendMessageSetText(Handle, fAddLineMsg, fItems.Strings[i]);
   SetItemIndex(fItemIndex);

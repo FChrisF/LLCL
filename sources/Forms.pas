@@ -134,7 +134,6 @@ type
     EOnResize,
     EOnDestroy: TNotifyEvent;
     procedure DoCreate;
-    procedure ChangeColor(NeedApplyColor: boolean);
     procedure SetWindowState(Value: TWindowState);
     procedure SetActiveControl(Value: TWinControl);
   protected
@@ -143,7 +142,6 @@ type
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     procedure CreateHandle; override;
     procedure CreateParams(var Params : TCreateParams); override;
-    procedure SetColor(Value: integer); override;
     procedure InvalidateEx(EraseBackGround: boolean); override;
     function  GetSpecTabStop(): boolean; override;
     procedure SetFocusControl(Value: TWinControl);    // To avoid infinite loop with TWinControl focus update
@@ -427,8 +425,7 @@ begin
   // Update screen positions
   if LLCL_GetWindowRect(Handle, aRect) then
     SetBounds(aRect.Left, aRect.Top, Width, Height);
-  // Color and UI
-  ChangeColor(true);
+  // UI
   if CheckWin32Version(LLCL_WIN2000_MAJ, LLCL_WIN2000_MIN) then
     LLCL_PostMessage(Handle, WM_CHANGEUISTATE, WPARAM(UIS_INITIALIZE or ((UISF_HIDEFOCUS or UISF_HIDEACCEL) shl 16)), 0);
 end;
@@ -532,20 +529,6 @@ begin
   {$endif}
   if Assigned(EOnCreate) then
     EOnCreate(self);
-end;
-
-procedure TCustomForm.ChangeColor(NeedApplyColor: boolean);
-begin
-  if NeedApplyColor then ApplyColor;
-  LLCL_SetClassLongPtr(Handle, GCL_HBRBACKGROUND, NativeUInt(Canvas.Brush.Handle));
-end;
-
-procedure TCustomForm.SetColor(Value: integer);
-begin
-  inherited;
-  ChangeColor(false);
-  LLCL_RedrawWindow(Handle, nil, 0, RDW_INVALIDATE or RDW_ALLCHILDREN);
-  LLCL_InvalidateRect(Handle, nil, true);
 end;
 
 procedure TCustomForm.InvalidateEx(EraseBackGround: boolean);

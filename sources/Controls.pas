@@ -183,7 +183,6 @@ type
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     function  SubProperty(const SubPropName: string): TPersistent; override;
     procedure SetColor(Value: integer); virtual;
-    procedure ApplyColor();
     procedure SetCaption(const Value: string); virtual;
     procedure InvalidateEx(EraseBackGround: boolean); virtual;
     function  GetVisualParentForm(var aForm: TControl): boolean;
@@ -292,6 +291,7 @@ type
     procedure HandleNeeded;
     procedure CreateParams(var Params: TCreateParams); virtual;
     procedure SetHandle(Value: THandle);
+    procedure SetColor(Value: integer); override;
     procedure SetCaption(const Value: string); override;
     function  GetTabOrder(): integer;
     procedure SetTabOrder(Value: integer);
@@ -402,7 +402,7 @@ const
   UITYPE_FOCUS          = 1;
 
 //  // Can contain controls
-//  TContainControls = [ATTCustomForm, ATTGroupBox];
+  TContainControls = [ATTCustomForm, ATTGroupBox];
   // Click on control doesn't set focus
   TNonClickFocusCtrl = [ATTCustomForm, ATTStaticText, ATTProgressBar];
 
@@ -621,11 +621,6 @@ procedure TVisualControl.SetColor(Value: integer);
 begin
   fColor := Value;
   Canvas.Brush.Color := Value;
-end;
-
-procedure TVisualControl.ApplyColor();
-begin
-  Color := fColor;
 end;
 
 procedure TVisualControl.SetCaption(const Value: string);
@@ -869,6 +864,7 @@ begin
   with CCreateParams do
     Handle := LLCL_CreateWindowEx(ExStyle, @WinClassName, Caption,
     Style, X, Y, Width, Height, WndParent, 0, WindowClass.hInstance, Param);
+  Canvas.Brush.Color := fColor;
   UpdTextSize(Caption);
 end;
 
@@ -934,6 +930,14 @@ begin
     LLCL_SendMessage(fHandle, WM_SETFONT, WPARAM(Font.Handle), 0);
     SetEnabled(fEnabled);
   end;
+end;
+
+procedure TWinControl.SetColor(Value: integer);
+begin
+  inherited;
+  if ATType in TContainControls then
+    LLCL_RedrawWindow(Handle, nil, 0, RDW_INVALIDATE or RDW_ALLCHILDREN);
+  LLCL_InvalidateRect(Handle, nil, true);
 end;
 
 procedure TWinControl.SetCaption(const Value: string);
@@ -1724,18 +1728,17 @@ procedure TWinControl.WMEraseBkGnd(var Msg: TWMEraseBkGnd);
 var BrushColorSave: integer;
 begin
   // Modified for some TWinControls
-  if (ATType in [ATTGroupBox, ATTComboBox])
+  if (ATType in [ATTCustomForm, ATTGroupBox, ATTComboBox])
     or ((ATType=ATTStaticText) and (not Transparent)) then
     begin
       with Canvas do begin
-        BrushColorSave := Color;
         Handle := Msg.DC;
+        BrushColorSave := Brush.Color;
         if ATType=ATTComboBox then    // (Only csSimple style concerned)
-          Brush.Color := self.Parent.Color
-        else
-          Brush.Color := Color;
+          Brush.Color := self.Parent.Color;
         FillRect(Rect(0, 0, fWidth, fHeight));
-        Color := BrushColorSave;
+        if ATType=ATTComboBox then    // (Only csSimple style concerned)
+          Brush.Color := BrushColorSave;
       end;
       Msg.result := 1;
     end
