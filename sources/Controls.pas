@@ -1736,7 +1736,7 @@ begin
         BrushColorSave := Brush.Color;
         if ATType=ATTComboBox then    // (Only csSimple style concerned)
           Brush.Color := self.Parent.Color;
-        FillRect(Rect(0, 0, fWidth, fHeight));
+        FillRect(ClientRect());
         if ATType=ATTComboBox then    // (Only csSimple style concerned)
           Brush.Color := BrushColorSave;
       end;
