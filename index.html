@@ -32,10 +32,10 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
         <h1>
-<a id="light-lcl-llcl" class="anchor" href="#light-lcl-llcl" aria-hidden="true"><span class="octicon octicon-link"></span></a>Light LCL (LLCL)</h1>
+<a id="light-lcl-llcl" class="anchor" href="#light-lcl-llcl" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Light LCL (LLCL)</h1>
 
 <h2>
-<a id="description" class="anchor" href="#description" aria-hidden="true"><span class="octicon octicon-link"></span></a>Description</h2>
+<a id="description" class="anchor" href="#description" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Description</h2>
 
 <p>The Light LCL (LLCL) is intended to provide a way to produce
 small executable files with Free Pascal/Lazarus or Delphi 7,
@@ -43,7 +43,7 @@ while being compatible with - a part of - the LCL/VCL. It may
 concern for instance: small installation or configuration
 programs, simple tools, test programs, ... Typically, the size
 is about 1/10th with Free Pascal/Lazarus and 1/5th with Delphi
-for simple small programs.</p>
+for small and simple programs.</p>
 
 <p>It's not a specific graphical library, or another widgetset.
 It's an emulation of a small subset of the standard LCL/VCL,
@@ -56,30 +56,57 @@ can be used.</p>
 <a href="https://github.com/synopse/LVCL">LVCL</a></p>
 
 <h2>
-<a id="usage-and-configuration" class="anchor" href="#usage-and-configuration" aria-hidden="true"><span class="octicon octicon-link"></span></a>Usage and configuration</h2>
+<a id="usage-and-configuration" class="anchor" href="#usage-and-configuration" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Usage and configuration</h2>
 
 <p>There is nothing to install in order to use it, nor any
 configuration to modify: just indicate a valid path for the
 Light LCL files into your project options, and that's it !</p>
 
 <p>It's available only for Windows (32 and 64 bits). It has
-been tested with FPC 2.6.x/3.x + Lazarus 1.2.x/1.4.x/1.5 and
+been tested with FPC 2.6.x/3.x + Lazarus 1.4.x/1.6 and
 Delphi 7.</p>
 
 <p>See "README.txt" for more pieces of information.</p>
 
 <h2>
-<a id="license" class="anchor" href="#license" aria-hidden="true"><span class="octicon octicon-link"></span></a>License</h2>
+<a id="license" class="anchor" href="#license" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>License</h2>
 
 <p>The Light LCL is released under the Mozilla Public License
 version 2.0. See "LICENSE.txt".</p>
 
 <h2>
-<a id="llcl-changelog" class="anchor" href="#llcl-changelog" aria-hidden="true"><span class="octicon octicon-link"></span></a>LLCL ChangeLog</h2>
+<a id="llcl-changelog" class="anchor" href="#llcl-changelog" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>LLCL ChangeLog</h2>
 
 <ul>
 <li>
-<a href="https://github.com/FChrisF/LLCL/releases/tag/v1.0.0">Version 1.00</a>:
+<p><a href="https://github.com/FChrisF/LLCL/releases/tag/v1.0.1">Version 1.01</a>:
+Main changes and additions:</p>
+
+<ul>
+<li>TStringGrid control added (Grids.pas),</li>
+<li>TIniFile class added (IniFiles.pas),</li>
+<li>TClipboard class added for text data (ClipBrd.pas),</li>
+<li>PNG images support (not enabled by default),</li>
+<li>transparent bitmaps support (not enabled by default),</li>
+<li>forms double buffering support (not enabled by default),</li>
+<li>TSelectDirectoryDialog control added (Dialog.pas) for
+FPC/Lazarus (not enabled by default) and SelectDirectory
+function (Dialog.pas or FileCtrl.pas),</li>
+<li>ANSI LLCL option (i.e. no UTF8 at all) added for
+FPC/Lazarus (see in LLCLFPCInc.inc),</li>
+<li>design time only properties for controls are now
+accessible for dynamic creation purposes. Run time
+modifications are still not supported for them, but they
+can now be set at run time before the corresponding
+control is dynamically created,</li>
+<li>a few bug fixes and some minor additions/modifications.
+Note: controls and functionalities not enabled by default
+can be activated by defining the corresponding option(s) in
+the option files LLCLOptions.inc.</li>
+</ul>
+</li>
+<li>
+<p><a href="https://github.com/FChrisF/LLCL/releases/tag/v1.0.0">Version 1.00</a>:</p>
 
 <ul>
 <li>Initial public release.</li>
@@ -88,7 +115,7 @@ version 2.0. See "LICENSE.txt".</p>
 </ul>
 
 <h2>
-<a id="samples" class="anchor" href="#samples" aria-hidden="true"><span class="octicon octicon-link"></span></a>Samples</h2>
+<a id="samples" class="anchor" href="#samples" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Samples</h2>
 
 <p>A small demonstration project (both for Free Pascal/Lazarus
 and Delphi 7) is included.</p>
@@ -96,7 +123,7 @@ and Delphi 7) is included.</p>
 <p><a href="captures/demo-screen.png"><img src="captures/demo-screen-th.png" alt="Demonstration screenshot"></a></p>
 
 <p>More sample projects are also available here:
-<a href="https://github.com/FChrisF/LLCL-samples">Sample projects for the LLCL</a></p>
+<a href="https://FChrisF.github.io/LLCL-samples">Sample projects for the LLCL</a></p>
       </section>
     </div>
 
