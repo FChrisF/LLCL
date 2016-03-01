@@ -45,6 +45,7 @@ version 2.0. See "LICENSE.txt".
 ## LLCL ChangeLog
 
 * [Version 1.01] (https://github.com/FChrisF/LLCL/releases/tag/v1.0.1):
+
   Main changes and additions:
   - TStringGrid control added (Grids.pas),
   - TIniFile class added (IniFiles.pas),
@@ -63,6 +64,7 @@ version 2.0. See "LICENSE.txt".
     can now be set at run time before the corresponding
     control is dynamically created,
   - a few bug fixes and some minor additions/modifications.
+
   Note: controls and functionalities not enabled by default
   can be activated by defining the corresponding option(s) in
   the option files LLCLOptions.inc.
