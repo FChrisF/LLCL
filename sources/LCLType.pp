@@ -12,15 +12,17 @@ unit LCLType;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * RT_**** constants added (point to Windows declarations)
    Version 1.00:
     * File creation.
 
@@ -45,16 +47,32 @@ uses
 
 type
   TCreateParams = record            // Not present in Control.pas for FPC/Lazarus
-    Caption: PChar;
-    Style: cardinal;
-    ExStyle: cardinal;
-    X, Y: integer;
-    Width, Height: integer;
-    WndParent: HWnd;
-    Param: pointer;
-    WindowClass: TWndClass;
-    WinClassName: array[0..63] of Char;
+    Caption:        PChar;
+    Style:          cardinal;
+    ExStyle:        cardinal;
+    X, Y:           integer;
+    Width, Height:  integer;
+    WndParent:      HWnd;
+    Param:          pointer;
+    WindowClass:    TWndClass;
+    WinClassName:   array[0..63] of Char;
   end;
+
+const
+  RT_CURSOR         = Windows.RT_CURSOR;
+  RT_BITMAP         = Windows.RT_BITMAP;
+  RT_ICON           = Windows.RT_ICON;
+  RT_MENU           = Windows.RT_MENU;
+  RT_DIALOG         = Windows.RT_DIALOG;
+  RT_STRING         = Windows.RT_STRING;
+  RT_FONTDIR        = Windows.RT_FONTDIR;
+  RT_FONT           = Windows.RT_FONT;
+  RT_ACCELERATOR    = Windows.RT_ACCELERATOR;
+  RT_RCDATA         = Windows.RT_RCDATA;
+  RT_MESSAGETABLE   = Windows.RT_MESSAGETABLE;
+  RT_GROUP_CURSOR   = Windows.RT_GROUP_CURSOR;
+  RT_GROUP_ICON     = Windows.RT_GROUP_ICON;
+  RT_VERSION        = Windows.RT_VERSION;
 
 //------------------------------------------------------------------------------
 

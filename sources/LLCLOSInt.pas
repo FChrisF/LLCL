@@ -12,15 +12,24 @@ unit LLCLOSInt;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * Transparent bitmap functions added
+    * ListView functions added
+    * Directory selection functions/structures added
+    * Ini files functions added
+    * Clipboard functions added
+    * Unicode version for FPC/Lazarus now uses Unicode Windows APIs only by default
+    * New specific mode support for FPC/Lazarus: Ansi only (see LLCL_FPC_ANSI_ONLY in LLCLFPCInc.inc)
+    * Internal function LLCLS_FreeMemAndNil added
    Version 1.00:
     * File creation.
     * Windows API and structures (only a subset)
@@ -44,7 +53,15 @@ unit LLCLOSInt;
   {$IFDEF DisableWindowsUnicodeSupport}
     {$DEFINE LLCL_UNICODE_API_A}        // Ansi only
   {$ELSE}               // (Ansi already means Ansi only)
-    {$DEFINE LLCL_UNICODE_API_W}        // Ansi and Wide
+    {$IFDEF UNICODE}
+      {$DEFINE LLCL_UNICODE_API_W_ONLY} // Wide only
+    {$ELSE}
+      {$IFDEF LLCL_FPC_ANSI_ONLY}
+        {$DEFINE LLCL_UNICODE_API_A}    // Ansi only
+      {$ELSE}
+        {$DEFINE LLCL_UNICODE_API_W}    // Ansi and Wide
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
 {$ELSE FPC}
   {$IFDEF UNICODE}      // Defined insided Delphi
@@ -70,8 +87,8 @@ unit LLCLOSInt;
 
 {$IFDEF LLCL_OPT_UNICODE_API_W_ONLY}
   {$UNDEF LLCL_UNICODE_API_A}
+  {$DEFINE LLCL_UNICODE_API_W}
   {$DEFINE LLCL_UNICODE_API_W_ONLY}
-  {$DEFINE LLCL_UNICODE_API_W_ONLY_ONLY}
 {$ENDIF}
 
 {$IFDEF LLCL_UNICODE_API_W_ONLY}      // (Sanity)
@@ -86,7 +103,11 @@ unit LLCLOSInt;
   {$IFDEF UNICODE}
     {$DEFINE LLCL_UNICODE_STR_UTF16}  // UTF16
   {$ELSE}                             //
-    {$DEFINE LLCL_UNICODE_STR_UTF8}   //   or UTF8
+    {$IFDEF LLCL_FPC_ANSI_ONLY}
+      {$DEFINE LLCL_UNICODE_STR_ANSI} //   (or Ansi)
+    {$ELSE}                           //
+      {$DEFINE LLCL_UNICODE_STR_UTF8} //   or UTF8
+    {$ENDIF}
   {$ENDIF}
 {$ELSE FPC}
   {$IFDEF UNICODE}
@@ -102,12 +123,12 @@ interface
 
 uses
 {$IFNDEF FPC}
-  ShellApi,
+  ShellApi, CommCtrl, ShlObj,
 {$ENDIF NFPC}
   Windows, CommDlg;
 
 {$IFDEF FPC}
-  {$I LLCLFPCInc.inc}   // (for LLCL_MISSING_WINDOWS_DEC, LLCL_EXTWIN_WIDESTRUCT, LLCL_FPC_UTF8RTL, LLCL_FPC_CPSTRING, LLCL_FPC_ANSISYS or LLCL_FPC_UNISYS)
+  {$I LLCLFPCInc.inc}   // (for LLCL_MISSING_WINDOWS_DEC, LLCL_EXTWIN_WIDESTRUCT, LLCL_FPC_UTF8RTL, LLCL_FPC_CPSTRING, LLCL_FPC_ANSI_LLCL, LLCL_FPC_ANSISYS or LLCL_FPC_UNISYS)
 {$ELSE FPC}
   {$if not Declared(CompilerVersion)}
     const CompilerVersion = 1;  // Before Delphi 6
@@ -115,6 +136,7 @@ uses
   {$if CompilerVersion<20}      // Before Delphi 2009
     type NativeInt = Integer;
     type unicodestring = widestring;
+    type UnicodeChar = WideChar;
     type PUnicodeChar = PWideChar;
   {$ifend}
   {$if CompilerVersion<21}      // Before Delphi 2010
@@ -135,7 +157,7 @@ uses
 // Constant message strings (language adaptation)
 //{$DEFINE LLCL_STR_USE_EXTINC}
 {$IFDEF LLCL_STR_USE_EXTINC}
-{$if Defined(FPC) or Defined(UNICODE)}
+{$if Defined(LLCL_FPC_UTF8_EXTINC) or Defined(UNICODE)}
   {$I LLCLSTREXTInc_UTF8.inc}
 {$else}
   {$I LLCLSTREXTInc_ANSI.inc}
@@ -176,6 +198,12 @@ const
   LLCL_WINXP_MAJ    = 5; LLCL_WINXP_MIN    = 01;
   LLCL_WINVISTA_MAJ = 6; LLCL_WINVISTA_MIN = 00;
 
+// Structure Redefinitions
+type
+  // Identical to TShiftState in Classes.pas (avoid to include Classes)
+  LLCL_TShiftState =
+    set of (ssShift, ssAlt, ssCtrl, ssLeft, ssRight, ssMiddle, ssDouble);
+
 // API Redefinitions
 {$IFDEF FPC}
 type
@@ -183,6 +211,7 @@ type
 {$ELSE FPC}
 type
   HANDLE = THandle;
+  HIMAGELIST = THandle;
   LPSECURITY_ATTRIBUTES = PSecurityAttributes;
 {$ENDIF FPC}
 
@@ -258,6 +287,11 @@ type
 const
   INVALID_SET_FILE_POINTER  = -1;
   INVALID_FILE_ATTRIBUTES   = -1;
+{$IFDEF FPC}
+  CSTR_LESS_THAN            = 1;    // string 1 less than string 2
+  CSTR_EQUAL                = 2;    // string 1 equal to string 2
+  CSTR_GREATER_THAN         = 3;    // string 1 greater than string 2
+{$ENDIF FPC}
 {$IFDEF LLCL_MISSING_WINDOWS_DEC}
 // Note: currently (FPC 2.6.4/2.7.x/3.x.x), PBM_GETPOS absent (WM_USER+8), and can't use CmmCtrl
 const
@@ -266,9 +300,9 @@ const
 
 type
 {$IFNDEF LLCL_UNICODE_API_W_ONLY}   // (Internal only structure)
-  TCustomLogFont        = TLogFontA;
+  TCustomLogFont      = TLogFontA;
 {$ELSE}
-  TCustomLogFont        = TLogFontW;
+  TCustomLogFont      = TLogFontW;
 {$ENDIF}
 
 type
@@ -352,6 +386,56 @@ type
   end;
   PCustomNotifyIconDataExtW = ^TCustomNotifyIconDataExtW;
 
+{$IFDEF FPC}
+// Redefined
+  TBrowseInfoA = record
+    hwndOwner:        HWND;
+    pidlRoot:         PItemIDList;
+    pszDisplayName:   PAnsiChar;
+    lpszTitle:        PAnsiChar;
+    ulFlags:          cardinal;
+    lpfn:             BFFCALLBACK;
+    lParam:           LPARAM;
+    iImage:           cardinal;
+  end;
+  TBrowseInfoW = record
+    hwndOwner:        HWND;
+    pidlRoot:         PItemIDList;
+    pszDisplayName:   PWideChar;
+    lpszTitle:        PWideChar;
+    ulFlags:          cardinal;
+    lpfn:             BFFCALLBACK;
+    lParam:           LPARAM;
+    iImage:           cardinal;
+  end;
+{$IFNDEF LLCL_UNICODE_API_W_ONLY}   // (Internal only structure)
+  TBrowseInfo         = TBrowseInfoA;
+{$ELSE}
+  TBrowseInfo         = TBrowseInfoW;
+{$ENDIF}
+const
+  BIF_RETURNONLYFSDIRS    = $0001;
+  BIF_EDITBOX             = $0010;
+  BIF_VALIDATE            = $0020;
+  BIF_NEWDIALOGSTYLE      = $0040;
+  BIF_NONEWFOLDERBUTTON   = $0200;
+  BIF_NOTRANSLATETARGETS  = $0400;
+  BIF_BROWSEINCLUDEFILES  = $4000;
+  BIF_SHAREABLE           = $8000;
+  BFFM_INITIALIZED        = 1;
+  BFFM_SELCHANGED         = 2;
+  BFFM_VALIDATEFAILEDA    = 3;
+  BFFM_VALIDATEFAILEDW    = 4;
+  BFFM_ENABLEOK           = WM_USER + 101;
+  BFFM_SETSELECTIONA      = WM_USER + 102;
+  BFFM_SETSELECTIONW      = WM_USER + 103;
+{$ELSE FPC}
+const
+  BIF_NONEWFOLDERBUTTON   = $0200;
+{$ENDIF FPC}
+
+// Specific
+type
   TOpenStrParam = record
     sFilter:          string;
     sFileName:        string;
@@ -368,7 +452,10 @@ type
   TCustomWin32FindData  = TWin32FindDataW;
 {$ENDIF}
 const
-  LLCLC_LENCOM_WIN32FINDDATA = 44;    // Common beginning part, before variable (Ansi/Wide) part
+  LLCLC_LENCOM_WIN32FINDDATA  = 44;     // Common beginning part, before variable (Ansi/Wide) part
+
+const
+  LLCLC_LISTVIEW_MAXCHAR      = 4096;   // Maximum number of characters for ListView
 
 // API Declarations with both Ansi/Unicode versions
 
@@ -376,9 +463,11 @@ const
   CKERNEL32         = 'kernel32.dll';
   CUSER32           = 'user32.dll';
   CGDI32            = 'gdi32.dll';
+  MSIMG32           = 'msimg32.dll';
   CCOMCTL32         = 'comctl32.dll';
   CCOMDLG32         = 'comdlg32.dll';
   CSHELL32          = 'shell32.dll';
+  COLE32            = 'ole32.dll';
   CVERSION          = 'version.dll';
 
 function  GetVersionExW(var lpVersionInformation: TOSVersionInfoW): BOOL; stdcall; external CKERNEL32 name 'GetVersionExW';
@@ -398,10 +487,11 @@ function  GetFullPathNameW(lpFileName: LPCWSTR; nBufferLength: DWORD; lpBuffer: 
 function  GetDiskFreeSpaceW(lpRootPathName: LPCWSTR; var lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters: DWORD): BOOL; stdcall; external CKERNEL32 name 'GetDiskFreeSpaceW';
 function  GetDiskFreeSpaceExW(lpDirectoryName: LPCWSTR; lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes, lpTotalNumberOfFreeBytes: PInt64): BOOL; stdcall; external CKERNEL32 name 'GetDiskFreeSpaceExW';
 function  FormatMessageW(dwFlags: DWORD; lpSource: Pointer; dwMessageId: DWORD; dwLanguageId: DWORD; lpBuffer: LPCWSTR; nSize: DWORD; Arguments: Pointer): DWORD; stdcall; external CKERNEL32 name 'FormatMessageW';
-function  CharToOemW(lpszSrc: LPCWSTR; lpszDst: LPCSTR): BOOL; stdcall; external CUSER32 name 'CharToOemW';
 function  CompareStringW(Locale: LCID; dwCmpFlags: DWORD; lpString1: LPCWSTR; cchCount1: Integer; lpString2: LPCWSTR; cchCount2: Integer): Integer; stdcall; external CKERNEL32 name 'CompareStringW';
 function  LoadLibraryW(lpLibFileName: LPCWSTR): HMODULE; stdcall; external CKERNEL32 name 'LoadLibraryW';
 function  CreateEventW(lpEventAttributes: LPSECURITY_ATTRIBUTES; bManualReset: BOOL; bInitialState: BOOL; lpName: LPCWSTR): HANDLE; stdcall; external CKERNEL32 name 'CreateEventW';
+function  GetPrivateProfileStringW(lpAppName, lpKeyName, lpDefault: LPCWSTR; lpReturnedString: LPWSTR; nSize: DWORD; lpFileName: LPCWSTR): DWORD; stdcall; external CKERNEL32 name 'GetPrivateProfileStringW';
+function  CharToOemW(lpszSrc: LPCWSTR; lpszDst: LPCSTR): BOOL; stdcall; external CUSER32 name 'CharToOemW';
 function  RegisterClassW(const lpWndClass: TWndClassW): ATOM; stdcall; external CUSER32 name 'RegisterClassW';
 function  UnregisterClassW(lpClassName: LPCWSTR; hInstance: HINST): BOOL; stdcall; external CUSER32 name 'UnregisterClassW';
 function  CreateWindowExW(dwExStyle: DWORD; lpClassName: LPCWSTR; lpWindowName: LPCWSTR;
@@ -411,10 +501,10 @@ function  CallWindowProcW(lpPrevWndFunc: TFNWndProc; hWnd: HWND; Msg: UINT; wPar
 function  PeekMessageW(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax, wRemoveMsg: UINT): BOOL; stdcall; external CUSER32 name 'PeekMessageW';
 function  DispatchMessageW(const lpMsg: TMsg): longint; stdcall; external CUSER32 name 'DispatchMessageW';
 function  SendMessageW(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): LRESULT; stdcall; external CUSER32 name 'SendMessageW';
-function  PostMessageW(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): LRESULT; stdcall; external CUSER32 name 'PostMessageW';
+function  PostMessageW(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): BOOL; stdcall; external CUSER32 name 'PostMessageW';
 function  GetWindowLongW(hWnd: HWND; nIndex: Integer): longint; stdcall; external CUSER32 name 'GetWindowLongW';
 function  SetWindowLongW(hWnd: HWND; nIndex: Integer; dwNewLong: longint): longint; stdcall; external CUSER32 name 'SetWindowLongW';
-{$ifdef cpu64}
+{$if Defined(CPU64) or Defined(CPU64BITS)}
 function  GetClassLongPtrW(hWnd: HWND; nIndex: Integer): NativeUInt; stdcall; external CUSER32 name 'GetClassLongPtrW';
 function  SetClassLongPtrW(hWnd: HWND; nIndex: Integer; dwNewLong: NativeUInt): NativeUInt; stdcall; external CUSER32 name 'SetClassLongPtrW';
 function  GetWindowLongPtrW(hWnd: HWND; nIndex: Integer): NativeUInt; stdcall; external CUSER32 name 'GetWindowLongPtrW';
@@ -424,7 +514,7 @@ function  GetClassLongPtrW(hWnd: HWND; nIndex: Integer): NativeUInt; stdcall; ex
 function  SetClassLongPtrW(hWnd: HWND; nIndex: Integer; dwNewLong: NativeUInt): NativeUInt; stdcall; external CUSER32 name 'SetClassLongW';
 function  GetWindowLongPtrW(hWnd: HWND; nIndex: Integer): NativeUInt; stdcall; external CUSER32 name 'GetWindowLongW';
 function  SetWindowLongPtrW(hWnd: HWND; nIndex: Integer; dwNewLong: NativeUInt): NativeUInt; stdcall; external CUSER32 name 'SetWindowLongW';
-{$endif}
+{$ifend}
 function  DrawTextW(hDC: HDC; lpString: LPCWSTR; nCount: Integer; var lpRect: TRect; uFormat: UINT): Integer; stdcall; external CUSER32 name 'DrawTextW';
 function  LoadIconW(hInstance: HINST; lpIconName: LPCWSTR): HICON; stdcall; external CUSER32 name 'LoadIconW';
 function  LoadCursorW(hInstance: HINST; lpCursorName: LPCWSTR): HCURSOR; stdcall;  external CUSER32 name 'LoadCursorW';
@@ -439,6 +529,8 @@ function  ExtTextOutW(DC: HDC; X, Y: Integer; Options: longint; Rect: PRect; Str
 function  GetTextExtentPoint32W(DC: HDC; Str: LPCWSTR; Count: Integer; var Size: TSize): BOOL; stdcall; external CGDI32 name 'GetTextExtentPoint32W';
 function  CreateFontIndirectW(const p1: TLogFontW): HFONT; stdcall; external CGDI32 name 'CreateFontIndirectW';
 function  Shell_NotifyIconW(dwMessage: DWORD; lpData: PNotifyIconDataW): BOOL; stdcall; external CSHELL32 name 'Shell_NotifyIconW';
+function  SHBrowseForFolderW(var lpbi: TBrowseInfoW): PItemIDList; stdcall; external CSHELL32 name 'SHBrowseForFolderW';
+function  SHGetPathFromIDListW(pidl: PItemIDList; pszPath: LPWSTR): BOOL; stdcall; external CSHELL32 name 'SHGetPathFromIDListW';
 function  GetOpenFileNameW(var OpenFile: TOpenFilenameW): BOOL; stdcall; external CCOMDLG32 name 'GetOpenFileNameW';
 function  GetSaveFileNameW(var OpenFile: TOpenFilenameW): BOOL; stdcall; external CCOMDLG32 name 'GetSaveFileNameW';
 function  GetFileVersionInfoSizeW(lptstrFilename: LPCWSTR; var lpdwHandle: DWORD): DWORD; stdcall; external CVERSION name 'GetFileVersionInfoSizeW';
@@ -462,23 +554,24 @@ function  GetFullPathNameA(lpFileName: LPCSTR; nBufferLength: DWORD; lpBuffer: L
 function  GetDiskFreeSpaceA(lpRootPathName: LPCSTR; var lpSectorsPerCluster, lpBytesPerSector, lpNumberOfFreeClusters, lpTotalNumberOfClusters: DWORD): BOOL; stdcall; external CKERNEL32 name 'GetDiskFreeSpaceA';
 function  GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR; lpFreeBytesAvailableToCaller, lpTotalNumberOfBytes, lpTotalNumberOfFreeBytes: PInt64): BOOL; stdcall; external CKERNEL32 name 'GetDiskFreeSpaceExA';
 function  FormatMessageA(dwFlags: DWORD; lpSource: Pointer; dwMessageId: DWORD; dwLanguageId: DWORD; lpBuffer: LPCSTR; nSize: DWORD; Arguments: Pointer): DWORD; stdcall; external CKERNEL32 name 'FormatMessageA';
-function  CharToOemA(lpszSrc: LPCSTR; lpszDst: LPCSTR): BOOL; stdcall; external CUSER32 name 'CharToOemA';
 function  CompareStringA(Locale: LCID; dwCmpFlags: DWORD; lpString1: LPCSTR; cchCount1: Integer; lpString2: PAnsiChar; cchCount2: Integer): Integer; stdcall; external CKERNEL32 name 'CompareStringA';
 function  LoadLibraryA(lpLibFileName: LPCSTR): HMODULE; stdcall; external CKERNEL32 name 'LoadLibraryA';
 function  CreateEventA(lpEventAttributes: LPSECURITY_ATTRIBUTES; bManualReset: BOOL; bInitialState: BOOL; lpName: LPCSTR): HANDLE; stdcall; external CKERNEL32 name 'CreateEventA';
+function  GetPrivateProfileStringA(lpAppName, lpKeyName, lpDefault: LPCSTR; lpReturnedString: LPSTR; nSize: DWORD; lpFileName: LPCSTR): DWORD; stdcall; external CKERNEL32 name 'GetPrivateProfileStringA';
+function  CharToOemA(lpszSrc: LPCSTR; lpszDst: LPCSTR): BOOL; stdcall; external CUSER32 name 'CharToOemA';
 function  RegisterClassA(const lpWndClass: TWndClassA): ATOM; stdcall; external CUSER32 name 'RegisterClassA';
 function  UnregisterClassA(lpClassName: LPCSTR; hInstance: HINST): BOOL; stdcall; external CUSER32 name 'UnregisterClassA';
 function  CreateWindowExA(dwExStyle: DWORD; lpClassName: LPCSTR; lpWindowName: LPCSTR;
   dwStyle: DWORD; X, Y, nWidth, nHeight: Integer; hWndParent: HWND; hMenu: HMENU; hInstance: HINST; lpParam: Pointer): HWND; stdcall; external CUSER32 name 'CreateWindowExA';
-function DefWindowProcA(hWnd: HWND; Msg: UINT; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall; external CUSER32 name 'DefWindowProcA';
+function  DefWindowProcA(hWnd: HWND; Msg: UINT; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall; external CUSER32 name 'DefWindowProcA';
 function  CallWindowProcA(lpPrevWndFunc: TFNWndProc; hWnd: HWND; Msg: UINT; wParam: WPARAM; lParam: LPARAM): LRESULT; stdcall; external CUSER32 name 'CallWindowProcA';
 function  PeekMessageA(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax, wRemoveMsg: UINT): BOOL; stdcall; external CUSER32 name 'PeekMessageA';
 function  DispatchMessageA(const lpMsg: TMsg): longint; stdcall; external CUSER32 name 'DispatchMessageA';
 function  SendMessageA(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): LRESULT; stdcall; external CUSER32 name 'SendMessageA';
-function  PostMessageA(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): LRESULT; stdcall; external CUSER32 name 'PostMessageA';
+function  PostMessageA(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): BOOL; stdcall; external CUSER32 name 'PostMessageA';
 function  GetWindowLongA(hWnd: HWND; nIndex: Integer): longint; stdcall; external CUSER32 name 'GetWindowLongA';
 function  SetWindowLongA(hWnd: HWND; nIndex: Integer; dwNewLong: longint): longint; stdcall; external CUSER32 name 'SetWindowLongA';
-{$ifdef cpu64}
+{$if Defined(CPU64) or Defined(CPU64BITS)}
 function  GetClassLongPtrA(hWnd: HWND; nIndex: Integer): NativeUInt; stdcall; external CUSER32 name 'GetClassLongPtrA';
 function  SetClassLongPtrA(hWnd: HWND; nIndex: Integer; dwNewLong: NativeUInt): NativeUInt; stdcall; external CUSER32 name 'SetClassLongPtrA';
 function  GetWindowLongPtrA(hWnd: HWND; nIndex: Integer): NativeUInt; stdcall; external CUSER32 name 'GetWindowLongPtrA';
@@ -488,7 +581,7 @@ function  GetClassLongPtrA(hWnd: HWND; nIndex: Integer): NativeUInt; stdcall; ex
 function  SetClassLongPtrA(hWnd: HWND; nIndex: Integer; dwNewLong: NativeUInt): NativeUInt; stdcall; external CUSER32 name 'SetClassLongA';
 function  GetWindowLongPtrA(hWnd: HWND; nIndex: Integer): NativeUInt; stdcall; external CUSER32 name 'GetWindowLongA';
 function  SetWindowLongPtrA(hWnd: HWND; nIndex: Integer; dwNewLong: NativeUInt): NativeUInt; stdcall; external CUSER32 name 'SetWindowLongA';
-{$endif}
+{$ifend}
 function  DrawTextA(hDC: HDC; lpString: LPCSTR; nCount: Integer; var lpRect: TRect; uFormat: UINT): Integer; stdcall; external CUSER32 name 'DrawTextA';
 function  LoadIconA(hInstance: HINST; lpIconName: LPCSTR): HICON; stdcall; external CUSER32 name 'LoadIconA';
 function  LoadCursorA(hInstance: HINST; lpCursorName: LPCSTR): HCURSOR; stdcall;  external CUSER32 name 'LoadCursorA';
@@ -503,6 +596,8 @@ function  ExtTextOutA(DC: HDC; X, Y: Integer; Options: longint; Rect: PRect; Str
 function  GetTextExtentPoint32A(DC: HDC; Str: LPCSTR; Count: Integer; var Size: TSize): BOOL; stdcall; external CGDI32 name 'GetTextExtentPoint32A';
 function  CreateFontIndirectA(const p1: TLogFontA): HFONT; stdcall; external CGDI32 name 'CreateFontIndirectA';
 function  Shell_NotifyIconA(dwMessage: DWORD; lpData: PNotifyIconDataA): BOOL; stdcall; external CSHELL32 name 'Shell_NotifyIconA';
+function  SHBrowseForFolderA(var lpbi: TBrowseInfoA): PItemIDList; stdcall; external CSHELL32 name 'SHBrowseForFolderA';
+function  SHGetPathFromIDListA(pidl: PItemIDList; pszPath: LPSTR): BOOL; stdcall; external CSHELL32 name 'SHGetPathFromIDListA';
 function  GetOpenFileNameA(var OpenFile: TOpenFilenameA): BOOL; stdcall; external CCOMDLG32 name 'GetOpenFileNameA';
 function  GetSaveFileNameA(var OpenFile: TOpenFilenameA): BOOL; stdcall; external CCOMDLG32 name 'GetSaveFileNameA';
 function  GetFileVersionInfoSizeA(lptstrFilename: LPCSTR; var lpdwHandle: DWORD): DWORD; stdcall; external CVERSION name 'GetFileVersionInfoSizeA';
@@ -542,8 +637,13 @@ function  FindClose(hFindFile: HANDLE): BOOL; stdcall; external CKERNEL32 name '
 function  GetACP(): UINT; stdcall; external CKERNEL32 name 'GetACP';
 function  GetOEMCP(): UINT; stdcall; external CKERNEL32 name 'GetOEMCP';
 function  LoadResource(hModule: HINST; hResInfo: HRSRC): HGLOBAL; stdcall; external CKERNEL32 name 'LoadResource';
-function  LockResource(hResData: HGLOBAL): pointer; stdcall; external CKERNEL32 name 'LockResource';
+function  LockResource(hResData: HGLOBAL): Pointer; stdcall; external CKERNEL32 name 'LockResource';
 function  FreeResource(hResData: HGLOBAL): BOOL; stdcall; external CKERNEL32 name 'FreeResource';
+function  FreeLibrary(hModule: HMODULE): BOOL; stdcall; external CKERNEL32 name 'FreeLibrary';
+function  GlobalAlloc(uFlags: UINT; dwBytes: DWORD): HGLOBAL; stdcall; external CKERNEL32 name 'GlobalAlloc';
+function  GlobalLock(hMem: HGLOBAL): Pointer; stdcall; external CKERNEL32 name 'GlobalLock';
+function  GlobalUnlock(hMem: HGLOBAL): BOOL; stdcall; external CKERNEL32 name 'GlobalUnlock';
+function  GlobalFree(hMem: HGLOBAL): HGLOBAL; stdcall; external CKERNEL32 name 'GlobalFree';
 function  TranslateMessage(const lpMsg: TMsg): BOOL; stdcall; external CUSER32 name 'TranslateMessage';
 function  WaitMessage: BOOL; stdcall; external CUSER32 name 'WaitMessage';
 procedure PostQuitMessage(nExitCode: Integer); stdcall; external CUSER32 name 'PostQuitMessage';
@@ -592,6 +692,12 @@ function  DeleteMenu(hMenu: HMENU; uPosition, uFlags: UINT): BOOL; stdcall; exte
 function  DestroyMenu(hMenu: HMENU): BOOL; stdcall; external CUSER32 name 'DestroyMenu';
 function  GetSysColor(nIndex: Integer): DWORD; stdcall; external CUSER32 name 'GetSysColor';
 function  MessageBeep(uType: UINT): BOOL; stdcall; external CUSER32 name 'MessageBeep';
+function  OpenClipboard(hWndNewOwner: HWND): BOOL; stdcall; external CUSER32 name 'OpenClipboard';
+function  EmptyClipboard(): BOOL; stdcall; external CUSER32 name 'EmptyClipboard';
+function  GetClipboardData(uFormat: UINT): HANDLE; stdcall; external CUSER32 name 'GetClipboardData';
+function  SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall; external CUSER32 name 'SetClipboardData';
+function  IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall; external CUSER32 name 'IsClipboardFormatAvailable';
+function  CloseClipboard(): BOOL; stdcall; external CUSER32 name 'CloseClipboard';
 function  SetBkMode(DC: HDC; BkMode: Integer): Integer; stdcall; external CGDI32 name 'SetBkMode';
 function  SetBkColor(DC: HDC; Color: COLORREF): COLORREF; stdcall; external CGDI32 name 'SetBkColor';
 function  SelectObject(DC: HDC; p2: HGDIOBJ): HGDIOBJ; stdcall; external CGDI32 name 'SelectObject';
@@ -607,7 +713,13 @@ function  SetTextColor(DC: HDC; Color: COLORREF): COLORREF; stdcall; external CG
 function  SetStretchBltMode(DC: HDC; StretchMode: Integer): Integer; stdcall; external CGDI32 name 'SetStretchBltMode';
 function  StretchDIBits(DC: HDC; DestX, DestY, DestWidth, DestHeight, SrcX, SrcY, SrcWidth, SrcHeight: Integer; Bits: Pointer; var BitsInfo: TBitmapInfo; Usage: UINT; Rop: DWORD): Integer; stdcall; external CGDI32 name 'StretchDIBits';
 function  SetDIBitsToDevice(DC: HDC; DestX, DestY: Integer; Width, Height: DWORD; SrcX, SrcY: Integer; nStartScan, NumScans: UINT; Bits: Pointer; var BitsInfo: TBitmapInfo; Usage: UINT): Integer; stdcall; external CGDI32 name 'SetDIBitsToDevice';
+function  BitBlt(hdcDest: HDC; nXDest, nYDest, nWidth, nHeight: Integer; hdcSrc: HDC; nXSrc, nYSrc: Integer; dwRop: DWORD): BOOL; stdcall; external CGDI32 name 'BitBlt';
+function  CreateCompatibleDC(hDC: HDC): HDC; stdcall; external CGDI32 name 'CreateCompatibleDC';
+function  DeleteDC(hDC: HDC): BOOL; stdcall; external CGDI32 name 'DeleteDC';
+function  CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: pByte; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall; external CGDI32 name 'CreateDIBitmap';
+function  CreateCompatibleBitmap(hDC: HDC; nWidth, nHeight: Integer): HBITMAP; stdcall; external CGDI32 name 'CreateCompatibleBitmap';
 procedure InitCommonControls(); stdcall; external CCOMCTL32 name 'InitCommonControls';
+procedure CoTaskMemFree(pv: Pointer); stdcall; external COLE32 name 'CoTaskMemFree';
 
 // API Functions mapping
 
@@ -622,7 +734,7 @@ function  LLCL_CallWindowProc(lpPrevWndFunc: TFNWndProc; hWnd: HWND; Msg: UINT; 
 function  LLCL_PeekMessage(var lpMsg: TMsg; hWnd: HWND; wMsgFilterMin, wMsgFilterMax, wRemoveMsg: UINT): BOOL;
 function  LLCL_DispatchMessage(const lpMsg: TMsg): longint;
 function  LLCL_SendMessage(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): LRESULT;
-function  LLCL_PostMessage(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): LRESULT;
+function  LLCL_PostMessage(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): BOOL;
 function  LLCL_GetWindowLong(hWnd: HWND; nIndex: Integer): longint;
 function  LLCL_SetWindowLong(hWnd: HWND; nIndex: Integer; dwNewLong: longint): longint;
 function  LLCL_GetClassLongPtr(hWnd: HWND; nIndex: Integer): NativeUInt;
@@ -690,8 +802,13 @@ function  LLCL_FindClose(hFindFile: HANDLE): BOOL; stdcall;
 function  LLCL_GetACP(): UINT; stdcall;
 function  LLCL_GetOEMCP(): UINT; stdcall;
 function  LLCL_LoadResource(hModule: HINST; hResInfo: HRSRC): HGLOBAL; stdcall;
-function  LLCL_LockResource(hResData: HGLOBAL): pointer; stdcall;
+function  LLCL_LockResource(hResData: HGLOBAL): Pointer; stdcall;
 function  LLCL_FreeResource(hResData: HGLOBAL): BOOL; stdcall;
+function  LLCL_FreeLibrary(hModule: HMODULE): BOOL; stdcall;
+function  LLCL_GlobalAlloc(uFlags: UINT; dwBytes: DWORD): HGLOBAL; stdcall;
+function  LLCL_GlobalLock(hMem: HGLOBAL): Pointer; stdcall;
+function  LLCL_GlobalUnlock(hMem: HGLOBAL): BOOL; stdcall;
+function  LLCL_GlobalFree(hMem: HGLOBAL): HGLOBAL; stdcall;
 function  LLCL_TranslateMessage(const lpMsg: TMsg): BOOL; stdcall;
 function  LLCL_WaitMessage: BOOL; stdcall;
 procedure LLCL_PostQuitMessage(nExitCode: Integer); stdcall;
@@ -740,6 +857,12 @@ function  LLCL_DeleteMenu(hMenu: HMENU; uPosition, uFlags: UINT): BOOL; stdcall;
 function  LLCL_DestroyMenu(hMenu: HMENU): BOOL; stdcall;
 function  LLCL_GetSysColor(nIndex: Integer): DWORD; stdcall;
 function  LLCL_MessageBeep(uType: UINT): BOOL; stdcall;
+function  LLCL_OpenClipboard(hWndNewOwner: HWND): BOOL; stdcall;
+function  LLCL_EmptyClipboard(): BOOL; stdcall;
+function  LLCL_GetClipboardData(uFormat: UINT): HANDLE; stdcall;
+function  LLCL_SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall;
+function  LLCL_IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall;
+function  LLCL_CloseClipboard(): BOOL; stdcall;
 function  LLCL_SetBkMode(DC: HDC; BkMode: Integer): Integer; stdcall;
 function  LLCL_SetBkColor(DC: HDC; Color: COLORREF): COLORREF; stdcall;
 function  LLCL_SelectObject(DC: HDC; p2: HGDIOBJ): HGDIOBJ; stdcall;
@@ -755,6 +878,11 @@ function  LLCL_SetTextColor(DC: HDC; Color: COLORREF): COLORREF; stdcall;
 function  LLCL_SetStretchBltMode(DC: HDC; StretchMode: Integer): Integer; stdcall;
 function  LLCL_StretchDIBits(DC: HDC; DestX, DestY, DestWidth, DestHeight, SrcX, SrcY, SrcWidth, SrcHeight: Integer; Bits: Pointer; var BitsInfo: TBitmapInfo; Usage: UINT; Rop: DWORD): Integer; stdcall;
 function  LLCL_SetDIBitsToDevice(DC: HDC; DestX, DestY: Integer; Width, Height: DWORD; SrcX, SrcY: Integer; nStartScan, NumScans: UINT; Bits: Pointer; var BitsInfo: TBitmapInfo; Usage: UINT): Integer; stdcall;
+function  LLCL_BitBlt(hdcDest: HDC; nXDest, nYDest, nWidth, nHeight: Integer; hdcSrc: HDC; nXSrc, nYSrc: Integer; dwRop: DWORD): BOOL; stdcall;
+function  LLCL_CreateCompatibleDC(hDC: HDC): HDC; stdcall;
+function  LLCL_DeleteDC(hDC: HDC): BOOL; stdcall;
+function  LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: pByte; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall;
+function  LLCL_CreateCompatibleBitmap(hDC: HDC; nWidth, nHeight: Integer): HBITMAP; stdcall;
 procedure LLCL_InitCommonControls(); stdcall;
 {$ELSE}
 function  LLCL_GetLastError(): DWORD; stdcall; external CKERNEL32 name 'GetLastError';
@@ -788,8 +916,13 @@ function  LLCL_FindClose(hFindFile: HANDLE): BOOL; stdcall; external CKERNEL32 n
 function  LLCL_GetACP(): UINT; stdcall; external CKERNEL32 name 'GetACP';
 function  LLCL_GetOEMCP(): UINT; stdcall; external CKERNEL32 name 'GetOEMCP';
 function  LLCL_LoadResource(hModule: HINST; hResInfo: HRSRC): HGLOBAL; stdcall; external CKERNEL32 name 'LoadResource';
-function  LLCL_LockResource(hResData: HGLOBAL): pointer; stdcall; external CKERNEL32 name 'LockResource';
+function  LLCL_LockResource(hResData: HGLOBAL): Pointer; stdcall; external CKERNEL32 name 'LockResource';
 function  LLCL_FreeResource(hResData: HGLOBAL): BOOL; stdcall; external CKERNEL32 name 'FreeResource';
+function  LLCL_FreeLibrary(hModule: HMODULE): BOOL; stdcall; external CKERNEL32 name 'FreeLibrary';
+function  LLCL_GlobalAlloc(uFlags: UINT; dwBytes: DWORD): HGLOBAL; stdcall; external CKERNEL32 name 'GlobalAlloc';
+function  LLCL_GlobalLock(hMem: HGLOBAL): Pointer; stdcall; external CKERNEL32 name 'GlobalLock';
+function  LLCL_GlobalUnlock(hMem: HGLOBAL): BOOL; stdcall; external CKERNEL32 name 'GlobalUnlock';
+function  LLCL_GlobalFree(hMem: HGLOBAL): HGLOBAL; stdcall; external CKERNEL32 name 'GlobalFree';
 function  LLCL_TranslateMessage(const lpMsg: TMsg): BOOL; stdcall; external CUSER32 name 'TranslateMessage';
 function  LLCL_WaitMessage: BOOL; stdcall; external CUSER32 name 'WaitMessage';
 procedure LLCL_PostQuitMessage(nExitCode: Integer); stdcall; external CUSER32 name 'PostQuitMessage';
@@ -838,6 +971,12 @@ function  LLCL_DeleteMenu(hMenu: HMENU; uPosition, uFlags: UINT): BOOL; stdcall;
 function  LLCL_DestroyMenu(hMenu: HMENU): BOOL; stdcall; external CUSER32 name 'DestroyMenu';
 function  LLCL_GetSysColor(nIndex: Integer): DWORD; stdcall; external CUSER32 name 'GetSysColor';
 function  LLCL_MessageBeep(uType: UINT): BOOL; stdcall; external CUSER32 name 'MessageBeep';
+function  LLCL_OpenClipboard(hWndNewOwner: HWND): BOOL; stdcall; external CUSER32 name 'OpenClipboard';
+function  LLCL_EmptyClipboard(): BOOL; stdcall; external CUSER32 name 'EmptyClipboard';
+function  LLCL_GetClipboardData(uFormat: UINT): HANDLE; stdcall; external CUSER32 name 'GetClipboardData';
+function  LLCL_SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall; external CUSER32 name 'SetClipboardData';
+function  LLCL_IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall; external CUSER32 name 'IsClipboardFormatAvailable';
+function  LLCL_CloseClipboard(): BOOL; stdcall; external CUSER32 name 'CloseClipboard';
 function  LLCL_SetBkMode(DC: HDC; BkMode: Integer): Integer; stdcall; external CGDI32 name 'SetBkMode';
 function  LLCL_SetBkColor(DC: HDC; Color: COLORREF): COLORREF; stdcall; external CGDI32 name 'SetBkColor';
 function  LLCL_SelectObject(DC: HDC; p2: HGDIOBJ): HGDIOBJ; stdcall; external CGDI32 name 'SelectObject';
@@ -853,6 +992,11 @@ function  LLCL_SetTextColor(DC: HDC; Color: COLORREF): COLORREF; stdcall; extern
 function  LLCL_SetStretchBltMode(DC: HDC; StretchMode: Integer): Integer; stdcall; external CGDI32 name 'SetStretchBltMode';
 function  LLCL_StretchDIBits(DC: HDC; DestX, DestY, DestWidth, DestHeight, SrcX, SrcY, SrcWidth, SrcHeight: Integer; Bits: Pointer; var BitsInfo: TBitmapInfo; Usage: UINT; Rop: DWORD): Integer; stdcall; external CGDI32 name 'StretchDIBits';
 function  LLCL_SetDIBitsToDevice(DC: HDC; DestX, DestY: Integer; Width, Height: DWORD; SrcX, SrcY: Integer; nStartScan, NumScans: UINT; Bits: Pointer; var BitsInfo: TBitmapInfo; Usage: UINT): Integer; stdcall; external CGDI32 name 'SetDIBitsToDevice';
+function  LLCL_BitBlt(hdcDest: HDC; nXDest, nYDest, nWidth, nHeight: Integer; hdcSrc: HDC; nXSrc, nYSrc: Integer; dwRop: DWORD): BOOL; stdcall; external CGDI32 name 'BitBlt';
+function  LLCL_CreateCompatibleDC(hDC: HDC): HDC; stdcall; external CGDI32 name 'CreateCompatibleDC';
+function  LLCL_DeleteDC(hDC: HDC): BOOL; stdcall; external CGDI32 name 'DeleteDC';
+function  LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: pByte; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall; external CGDI32 name 'CreateDIBitmap';
+function  LLCL_CreateCompatibleBitmap(hDC: HDC; nWidth, nHeight: Integer): HBITMAP; stdcall; external CGDI32 name 'CreateCompatibleBitmap';
 procedure LLCL_InitCommonControls(); stdcall; external CCOMCTL32 name 'InitCommonControls';
 {$ENDIF}
 
@@ -860,7 +1004,7 @@ procedure LLCL_InitCommonControls(); stdcall; external CCOMCTL32 name 'InitCommo
 // Ansi APIs without any transformations (for FPC SysUtils only)
 //   (Not sensible to LLCL_UNICODE_API_xxxx)
 function  LLCLSys_CreateFile(lpFileName: PChar; dwDesiredAccess, dwShareMode: DWORD; lpSecurityAttributes: LPSECURITY_ATTRIBUTES; dwCreationDisposition: DWORD; dwFlagsAndAttributes: DWORD; hTemplateFile: HANDLE; var LastOSError: DWORD): HANDLE;
-function  LLCLSys_FindFirstNextFile(sFileName: string; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: string; var LastOSError: DWORD): HANDLE;
+function  LLCLSys_FindFirstNextFile(const sFileName: string; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: string; var LastOSError: DWORD): HANDLE;
 function  LLCLSys_GetFileAttributes(lpFileName: PChar): DWORD;
 function  LLCLSys_GetFileAttributesEx(lpFileName: PChar; fInfoLevelId: TGetFileExInfoLevels; lpFileInformation: Pointer; var LastOSError: DWORD): BOOL;
 function  LLCLSys_CreateDirectory(lpPathName: PChar; lpSecurityAttributes: PSecurityAttributes): BOOL;
@@ -874,7 +1018,7 @@ function  LLCLSys_GetFileVersionInfo(lptstrFilename: PChar; dwHandle, dwLen: DWO
 function  LLCLSys_VerQueryValue(pBlock: Pointer; lpSubBlock: PChar; var lplpBuffer: Pointer; var puLen: UINT): BOOL;
 function  LLCLSys_LoadLibrary(lpLibFileName: PChar): HMODULE;
 //
-function  LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; String1: string; cchCount1: Integer; String2: string; cchCount2: Integer): Integer;
+function  LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 function  LLCLSys_CharUpperBuff(const sText: string): string;
 function  LLCLSys_CharLowerBuff(const sText: string): string;
 {$ENDIF}
@@ -882,7 +1026,7 @@ function  LLCLSys_CharLowerBuff(const sText: string): string;
 // Unicode APIs without any transformations (for FPC SysUtils only)
 //   (Not sensible to LLCL_UNICODE_API_xxxx)
 function  LLCLSys_CreateFile(lpFileName: PUnicodeChar; dwDesiredAccess, dwShareMode: DWORD; lpSecurityAttributes: LPSECURITY_ATTRIBUTES; dwCreationDisposition: DWORD; dwFlagsAndAttributes: DWORD; hTemplateFile: HANDLE; var LastOSError: DWORD): HANDLE;
-function  LLCLSys_FindFirstNextFile(sFileName: unicodestring; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: unicodestring; var LastOSError: DWORD): HANDLE;
+function  LLCLSys_FindFirstNextFile(const sFileName: unicodestring; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: unicodestring; var LastOSError: DWORD): HANDLE;
 function  LLCLSys_GetFileAttributes(lpFileName: PUnicodeChar): DWORD;
 function  LLCLSys_GetFileAttributesEx(lpFileName: PUnicodeChar; fInfoLevelId: TGetFileExInfoLevels; lpFileInformation: Pointer; var LastOSError: DWORD): BOOL;
 function  LLCLSys_CreateDirectory(lpPathName: PUnicodeChar; lpSecurityAttributes: PSecurityAttributes): BOOL;
@@ -896,7 +1040,7 @@ function  LLCLSys_GetFileVersionInfo(lptstrFilename: PUnicodeChar; dwHandle, dwL
 function  LLCLSys_VerQueryValue(pBlock: Pointer; lpSubBlock: PUnicodeChar; var lplpBuffer: Pointer; var puLen: UINT): BOOL;
 function  LLCLSys_LoadLibrary(lpLibFileName: PUnicodeChar): HMODULE;
 // (string instead of unicodestring)
-function  LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; String1: string; cchCount1: Integer; String2: string; cchCount2: Integer): Integer;
+function  LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 function  LLCLSys_CharUpperBuff(const sText: string): string;
 function  LLCLSys_CharLowerBuff(const sText: string): string;
 {$ENDIF}
@@ -906,6 +1050,7 @@ function  LLCL_UnlockResource(hResData: THandle): BOOL; stdcall;
 // Specific functions, and functions that cannot be directly mapped
 
 procedure LLCLS_GetOSVersionA(var aPlatform, aMajorVersion, aMinorVersion, aBuildNumber: integer; var aCSDVersion: string);
+procedure LLCLS_FreeMemAndNil(var ptr);
 procedure LLCLS_Init(aPlatForm: integer);
 function  LLCLS_InitCommonControl(CC: integer): BOOL;
 function  LLCLS_GetModuleFileName(hModule: HINST): string;
@@ -914,23 +1059,44 @@ function  LLCLS_GetNonClientMetrics(var NonClientMetrics: TCustomNonClientMetric
 function  LLCLS_CreateFontIndirect(const lpLogFont: TCustomLogFont; const sName: string): HFONT;
 function  LLCLS_SendMessageSetText(hWnd: HWND; Msg: Cardinal; const sText: string): LRESULT;
 function  LLCLS_SendMessageGetText(hWnd: HWND): string;
-function  LLCLS_CompareString(Locale: LCID; dwCmpFlags: DWORD; String1: string; cchCount1: Integer; String2: string; cchCount2: Integer): Integer;
+function  LLCLS_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 function  LLCLS_CharUpperBuff(const sText: string): string;
 function  LLCLS_CharLowerBuff(const sText: string): string;
 function  LLCLS_Shell_NotifyIcon(dwMessage: DWORD; lpData: PCustomNotifyIconData; UseExtStruct: boolean; const sTip: string): BOOL;
 function  LLCLS_Shell_NotifyIconBalloon(dwMessage: DWORD; lpData: PCustomNotifyIconData; UseExtStruct: boolean; InfoFlags: DWORD; const Timeout: UINT; const sInfoTitle: string; const sInfo: string): BOOL;
 function  LLCLS_GetOpenSaveFileName(var OpenFile: TOpenFilename; OpenSave: integer; var OpenStrParam: TOpenStrParam): BOOL;
-function  LLCLS_FindFirstNextFile(sFileName: string; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: string; var LastOSError: DWORD): HANDLE;
+function  LLCLS_FindFirstNextFile(const sFileName: string; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: string; var LastOSError: DWORD): HANDLE;
 function  LLCLS_GetCurrentDirectory(): string;
 function  LLCLS_GetFullPathName(const sFileName: string): string;
 function  LLCLS_GetDiskSpace(const sDrive: string; var TotalSpace, FreeSpaceAvailable: int64): BOOL;
 function  LLCLS_FormatMessage(dwFlags: DWORD; lpSource: Pointer; dwMessageId: DWORD; dwLanguageId: DWORD; Arguments: Pointer): string;
 function  LLCLS_StringToOem(const sText: string): ansistring;
 function  LLCLS_GetTextSize(hWnd: HWND; const sText: string; FontHandle: THandle; var Size: TSize): BOOL;
+function  LLCLS_KeysToShiftState(Keys: Word): LLCL_TShiftState;
+function  LLCLS_KeyDataToShiftState(KeyData: integer): LLCL_TShiftState;
 function  LLCLS_IsAccel(VK: word; const Str: string): BOOL;
 function  LLCLS_CharCodeToChar(const CharCode: word): Char;
+function  LLCLS_GetTextAPtr(lpText: LPCSTR): string;
+function  LLCLS_GetTextWPtr(lpText: LPCWSTR): string;
 function  LLCLS_FormUTF8ToString(const S: utf8string): string;
 function  LLCLS_FormStringToString(const S: ansistring): string;
+procedure LLCLS_LV_SetColumnWithTitleText(MsgType: Cardinal; hWnd: HWND; iCol: integer; const lvc: LV_COLUMN; const S: string);
+function  LLCLS_LV_GetColumnTitleText(hWnd: HWND; iCol: integer): string;
+procedure LLCLS_LV_SetItemWithText(MsgType: Cardinal; hWnd: HWND; const lvi: LV_ITEM; const S: string);
+function  LLCLS_LV_GetItemText(hWnd: HWND; iItem: integer; iSubItem: integer): string;
+function  LLCLS_LV_ImageList_Create(cx: integer; cy: integer; flags: cardinal; cInitial: integer; cGrow: integer): HIMAGELIST;
+function  LLCLS_LV_ImageList_Destroy(himl: HIMAGELIST): BOOL;
+function  LLCLS_SH_BrowseForFolder(const BrowseInfo: TBrowseInfo; const sTitle: string; const sRoot: string; var sDirName: string): BOOl;
+function  LLCLS_INI_ReadString(const FileName, Section, Ident, Default: string): string;
+procedure LLCLS_INI_WriteString(const FileName, Section, Ident, Value: string);
+procedure LLCLS_INI_Delete(const FileName: string; Section, Ident: PChar);
+function  LLCLS_CLPB_GetTextFormat(): cardinal;
+function  LLCLS_CLPB_SetTextPtr(const sText: string; var iLen: cardinal): Pointer;
+function  LLCLS_CLPB_GetText(lpText: Pointer): string;
+{$IFDEF LLCL_OPT_IMGTRANSPARENT}
+function  LLCLS_CheckAlphaBlend(): boolean;
+function  LLCLS_AlphaBlend(hdcDest: HDC; xoriginDest, yoriginDest, wDest, hDest: integer; hdcSrc: HDC; xoriginSrc, yoriginSrc, wSrc, hSrc: integer; ftn: BLENDFUNCTION): BOOL;
+{$ENDIF LLCL_OPT_IMGTRANSPARENT}
 
 {$IFDEF FPC}
 {$IFDEF UNICODE}
@@ -938,11 +1104,15 @@ function  LLCLS_UTF8ToSys(const S: utf8string): ansistring;
 function  LLCLS_SysToUTF8(const S: ansistring): utf8string;
 function  LLCLS_UTF8ToWinCP(const S: utf8string): ansistring;
 function  LLCLS_WinCPToUTF8(const S: ansistring): utf8string;
+function  LLCLS_UTF8LowerCase(const S: utf8string): utf8string;
+function  LLCLS_UTF8UpperCase(const S: utf8string): utf8string;
 {$ELSE UNICODE}
 function  LLCLS_UTF8ToSys(const S: string): string;
 function  LLCLS_SysToUTF8(const S: string): string;
 function  LLCLS_UTF8ToWinCP(const S: string): string;
 function  LLCLS_WinCPToUTF8(const S: string): string;
+function  LLCLS_UTF8LowerCase(const S: string): string;
+function  LLCLS_UTF8UpperCase(const S: string): string;
 {$ENDIF UNICODE}
 {$ENDIF}
 
@@ -964,6 +1134,9 @@ function  LLCLS_FFNF_W(lpFileName: PChar; hFindFile: HANDLE; var lpFindFileData:
 function  LLCLS_FFNF_A(lpFileName: PChar; hFindFile: HANDLE; var lpFindFileData: TWin32FindDataA; var OutFileName: string; var ResFunc: HANDLE; var LastOSError: DWORD): boolean; forward;
 procedure LLCLS_FFNF_AToW(const aWin32FindData: TWin32FindDataA; var wWin32FindData: TWin32FindDataW); forward;
 procedure LLCLS_FFNF_WToA(const wWin32FindData: TWin32FindDataW; var aWin32FindData: TWin32FindDataA); forward;
+{$IFDEF LLCL_FPC_ANSISYS}
+function  LLCLS_FFNF_AA(lpFileName: PChar; hFindFile: HANDLE; var lpFindFileData: TWin32FindDataA; var OutFileName: string; var ResFunc: HANDLE; var LastOSError: DWORD): boolean; forward;
+{$ENDIF}
 {$IFDEF LLCL_FPC_UNISYS}
 function  LLCLS_FFNF_WW(lpFileName: PUnicodeChar; hFindFile: HANDLE; var lpFindFileData: TWin32FindDataW; var OutFileName: unicodestring; var ResFunc: HANDLE; var LastOSError: DWORD): boolean; forward;
 {$ENDIF}
@@ -978,11 +1151,21 @@ procedure StrLCopyW(var Dest: array of WideChar; const Source: unicodestring; Ma
 
 function  ValAccelStr(const Str: string): word; forward;
 
+function  LLCLS_SH_BrowseForFolder_CB(hwnd: HWND; uMsg: UINT; lParam: LPARAM; lpData: LPARAM): longint; stdcall; forward;
+function  LLCLS_INI_ForceAnsi(const S: string; Convert: boolean): ansistring; forward;
+
 {$IFDEF LLCL_FPC_UTF8RTL}     // (FPC only)
 procedure CallInit(); forward;
 
 var InitDone: boolean = false;
-{$ENDIF}
+{$ENDIF LLCL_FPC_UTF8RTL}
+
+{$IFDEF LLCL_OPT_IMGTRANSPARENT}
+var HasAlphaBlend: integer = 0;
+var PAddrAlphaBlend: function(hdcDest: HDC; nXOriginDest, nYOriginDest, nWidthDest,
+      nHeightDest: Integer; hdcSrc: HDC; nXOriginSrc, nYOriginSrc, nWidthSrc,
+      nHeightSrc: Integer; blendFunction: BLENDFUNCTION): BOOL; stdcall;
+{$ENDIF LLCL_OPT_IMGTRANSPARENT}
 
 //------------------------------------------------------------------------------
 
@@ -1005,9 +1188,9 @@ begin
 {$IFDEF LLCL_UNICODE_API_W_ONLY}
     result := 0;
 {$ELSE}
-  begin
-    aStr := StrToTextDispA(lpModuleName);
-    result := GetModuleHandleA(@aStr[1]);
+    begin
+      aStr := StrToTextDispA(lpModuleName);
+      result := GetModuleHandleA(@aStr[1]);
     end;
 {$ENDIF}
 end;
@@ -1173,17 +1356,17 @@ begin
 {$ENDIF}
 end;
 
-function LLCL_PostMessage(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): LRESULT;
+function LLCL_PostMessage(hWnd: HWND; Msg: Cardinal; WParam: WPARAM; LParam: LPARAM): BOOL;
 begin
 {$IFDEF LLCL_UNICODE_API_W}
   if UnicodeEnabledOS then
-    result := longint(PostMessageW(hWnd, Msg, WParam, LParam))
+    result := PostMessageW(hWnd, Msg, WParam, LParam)
   else
 {$ENDIF}
 {$IFDEF LLCL_UNICODE_API_W_ONLY}
-    result := 0;
+    result := false;
 {$ELSE}
-    result := longint(PostMessageA(hWnd, Msg, WParam, LParam));
+    result := PostMessageA(hWnd, Msg, WParam, LParam);
 {$ENDIF}
 end;
 
@@ -2123,7 +2306,7 @@ begin
   result := LoadResource(hModule, hResInfo);
 end;
 
-function  LLCL_LockResource(hResData: HGLOBAL): pointer; stdcall;
+function  LLCL_LockResource(hResData: HGLOBAL): Pointer; stdcall;
 begin
   result := LockResource(hResData);
 end;
@@ -2131,6 +2314,31 @@ end;
 function  LLCL_FreeResource(hResData: HGLOBAL): BOOL; stdcall;
 begin
   result := FreeResource(hResData);
+end;
+
+function  LLCL_FreeLibrary(hModule: HMODULE): BOOL; stdcall;
+begin
+  result := FreeLibrary(hModule);
+end;
+
+function  LLCL_GlobalAlloc(uFlags: UINT; dwBytes: DWORD): HGLOBAL; stdcall;
+begin
+  result := GlobalAlloc(uFlags, dwBytes);
+end;
+
+function  LLCL_GlobalLock(hMem: HGLOBAL): Pointer; stdcall;
+begin
+  result := GlobalLock(hMem);
+end;
+
+function  LLCL_GlobalUnlock(hMem: HGLOBAL): BOOL; stdcall;
+begin
+  result := GlobalUnlock(hMem);
+end;
+
+function  LLCL_GlobalFree(hMem: HGLOBAL): HGLOBAL; stdcall;
+begin
+  result := GlobalFree(hMem);
 end;
 
 function LLCL_TranslateMessage(const lpMsg: TMsg): BOOL; stdcall;
@@ -2373,6 +2581,36 @@ begin
   result := MessageBeep(uType);
 end;
 
+function  LLCL_OpenClipboard(hWndNewOwner: HWND): BOOL; stdcall;
+begin
+  result := OpenClipboard(hWndNewOwner);
+end;
+
+function  LLCL_EmptyClipboard(): BOOL; stdcall;
+begin
+  result := EmptyClipboard();
+end;
+
+function  LLCL_GetClipboardData(uFormat: UINT): HANDLE; stdcall;
+begin
+  result := GetClipboardData(uFormat);
+end;
+
+function  LLCL_SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall;
+begin
+  result := SetClipboardData(uFormat, hMem);
+end;
+
+function  LLCL_IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall;
+begin
+  result := IsClipboardFormatAvailable(uFormat);
+end;
+
+function  LLCL_CloseClipboard(): BOOL; stdcall;
+begin
+  result := CloseClipboard();
+end;
+
 function LLCL_SetBkMode(DC: HDC; BkMode: Integer): Integer; stdcall;
 begin
   result := SetBkMode(DC, BkMode);
@@ -2448,6 +2686,31 @@ begin
   result := SetDIBitsToDevice(DC, DestX, DestY, Width, Height, SrcX, SrcY, nStartScan, NumScans, Bits, BitsInfo, Usage);
 end;
 
+function LLCL_BitBlt(hdcDest: HDC; nXDest, nYDest, nWidth, nHeight: Integer; hdcSrc: HDC; nXSrc, nYSrc: Integer; dwRop: DWORD): BOOL; stdcall;
+begin
+  result := BitBlt(hdcDest, nXDest, nYDest, nWidth, nHeight, hdcSrc, nXSrc, nYSrc, dwRop);
+end;
+
+function LLCL_CreateCompatibleDC(hDC: HDC): HDC; stdcall;
+begin
+  result := CreateCompatibleDC(hDC);
+end;
+
+function LLCL_DeleteDC(hDC: HDC): BOOL; stdcall;
+begin
+  result := DeleteDC(hDC);
+end;
+
+function LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: pByte; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall;
+begin
+  result := CreateDIBitmap(hDc, lpbmih, fdwInit, lpbInit, lpbmi, fuUsage);
+end;
+
+function LLCL_CreateCompatibleBitmap(hDC: HDC; nWidth, nHeight: Integer): HBITMAP; stdcall;
+begin
+  result := CreateCompatibleBitmap(hDC, nWidth, nHeight);
+end;
+
 procedure LLCL_InitCommonControls(); stdcall;
 begin
   InitCommonControls();
@@ -2469,12 +2732,38 @@ begin
     LastOSError := LLCL_GetLastError();
 end;
 
-function LLCLSys_FindFirstNextFile(sFileName: string; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: string; var LastOSError: DWORD): HANDLE;
+function LLCLSys_FindFirstNextFile(const sFileName: string; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: string; var LastOSError: DWORD): HANDLE;
 // Always TWin32FindData = TWin32FindDataA (no LLCL_EXTWIN_WIDESTRUCT defined)
 begin
-  // (Can use same Ansi function as for LLCLS_FindFirstNextFile)
-  if not LLCLS_FFNF_A(@sFileName[1], hFindFile, lpFindFileData, OutFileName, result, LastOSError) then
+  // (Can't use same Ansi function as for LLCLS_FindFirstNextFile)
+  if not LLCLS_FFNF_AA(@sFileName[1], hFindFile, lpFindFileData, OutFileName, result, LastOSError) then
     exit;
+end;
+//
+function LLCLS_FFNF_AA(lpFileName: PChar; hFindFile: HANDLE; var lpFindFileData: TWin32FindDataA; var OutFileName: string; var ResFunc: HANDLE; var LastOSError: DWORD): boolean;
+begin
+  result := false;
+  LastOSError := 0;
+  if hFindFile=0 then
+    begin
+      ResFunc := FindFirstFileA(lpFileName, lpFindFileData);
+      if ResFunc=INVALID_HANDLE_VALUE then
+        begin
+          LastOSError := LLCL_GetLastError();
+          exit;
+        end;
+    end
+  else
+    begin
+      ResFunc := HANDLE(FindNextFileA(hFindFile, lpFindFileData));   // (False=0)
+      if ResFunc=HANDLE(false) then
+        begin
+          LastOSError := LLCL_GetLastError();
+          exit;
+        end;
+    end;
+  OutFileName := string(lpFindFileData.cFileName);
+  result := true;
 end;
 
 function LLCLSys_GetFileAttributes(lpFileName: PChar): DWORD;
@@ -2580,9 +2869,9 @@ begin
   result := LoadLibraryA(lpLibFileName);
 end;
 
-function LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; String1: string; cchCount1: Integer; String2: string; cchCount2: Integer): Integer;
+function LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 begin
-  result := CompareStringA(Locale, dwCmpFlags, @String1[1], cchCount1, @String2[2], cchCount2);
+  result := CompareStringA(Locale, dwCmpFlags, @String1[1], length(String1), @String2[1], length(String2));
 end;
 
 function LLCLSys_CharUpperBuff(const sText: string): string;
@@ -2614,7 +2903,7 @@ begin
     LastOSError := LLCL_GetLastError();
 end;
 
-function LLCLSys_FindFirstNextFile(sFileName: unicodestring; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: unicodestring; var LastOSError: DWORD): HANDLE;
+function LLCLSys_FindFirstNextFile(const sFileName: unicodestring; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: unicodestring; var LastOSError: DWORD): HANDLE;
 // Always TWin32FindData = TWin32FindDataW (LLCL_EXTWIN_WIDESTRUCT defined)
 begin
   // (Can't use same Wide function as for LLCLS_FindFirstNextFile)
@@ -2744,12 +3033,12 @@ begin
   result := LoadLibraryW(lpLibFileName);
 end;
 
-function LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; String1: string; cchCount1: Integer; String2: string; cchCount2: Integer): Integer;
+function LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 var sString1, sString2: unicodestring;
 begin
   sString1 := unicodestring(String1);
   sString2 := unicodestring(String2);
-  result := CompareStringW(Locale, dwCmpFlags, @sString1[1], cchCount1, @sString2[1], cchCount2);
+  result := CompareStringW(Locale, dwCmpFlags, @sString1[1], length(sString1), @sString2[1], length(sString2));
 end;
 
 function LLCLSys_CharUpperBuff(const sText: string): string;
@@ -2788,6 +3077,16 @@ end;
 //
 // Specific functions
 //
+
+// Free memory and nil its pointer
+procedure LLCLS_FreeMemAndNil(var ptr);
+var tmp: Pointer;
+begin
+  tmp := Pointer(ptr);
+  Pointer(ptr) := nil;
+  if Assigned(tmp) then
+    FreeMem(tmp);
+end;
 
 // Exceptionally, only Ansi version here
 procedure LLCLS_GetOSVersionA(var aPlatform, aMajorVersion, aMinorVersion, aBuildNumber: integer; var aCSDVersion: string);
@@ -2829,7 +3128,7 @@ end;
 
 // Initialization for Common Controls
 function LLCLS_InitCommonControl(CC: integer): BOOL;
-var PAddrInitCommonControlsEx: function(var ICC: TInitCommonControlsEx): longbool stdcall;
+var PAddrInitCommonControlsEx: function(var ICC: TInitCommonControlsEx): longbool; stdcall;
 var ICC: TInitCommonControlsEx;
 begin
   LLCL_InitCommonControls();
@@ -2869,7 +3168,7 @@ begin
 {$IFDEF LLCL_UNICODE_API_W_ONLY}
     ;   // (result='' already set)
 {$ELSE}
-  begin
+    begin
       icount := GetModuleFileNameA(hModule, @aBuffer, Length(aBuffer)-1);
       if icount>0 then
         begin
@@ -3008,7 +3307,7 @@ begin
     else
 {$ENDIF}
 {$IFDEF LLCL_UNICODE_API_W_ONLY}
-    result := '';
+      result := '';
 {$ELSE}
       begin
         SetLength(aStr, ilen);
@@ -3019,7 +3318,7 @@ begin
   end;
 end;
 
-function LLCLS_CompareString(Locale: LCID; dwCmpFlags: DWORD; String1: string; cchCount1: Integer; String2: string; cchCount2: Integer): Integer;
+function LLCLS_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 {$IFDEF LLCL_UNICODE_API_W}
 var wString1, wString2: unicodestring;
 {$ENDIF}
@@ -3032,7 +3331,7 @@ begin
     begin
       wString1 := StrToTextDispW(String1);
       wString2 := StrToTextDispW(String2);
-      result := CompareStringW(Locale, dwCmpFlags, @wString1[1], cchCount1, @wString2[1], cchCount2);
+      result := CompareStringW(Locale, dwCmpFlags, @wString1[1], length(wString1), @wString2[1], length(wString2));
     end
   else
 {$ENDIF}
@@ -3042,7 +3341,7 @@ begin
     begin
       aString1 := StrToTextDispA(String1);
       aString2 := StrToTextDispA(String2);
-      result := CompareStringA(Locale, dwCmpFlags, @aString1[1], cchCount1, @aString2[1], cchCount2);
+      result := CompareStringA(Locale, dwCmpFlags, @aString1[1], length(aString1), @aString2[1], length(aString2));
     end;
 {$ENDIF}
 end;
@@ -3254,19 +3553,17 @@ begin
           pw1 := pwFileNameBuffer;
           pw2 := pwFileNameBuffer;
           while pw1<=pwFileNameBuffer+(((MULTI_MAXLEN+1)*2)-(2*2)) do
-            begin
-              if pw2^=WideChar(0) then
-                  begin
-                    wFileName := unicodestring(pw1);
-                    OpenStrParam.sFileName := OpenStrParam.sFileName+StrFromTextDispW(wFileName)+'|';
-                    Inc(OpenStrParam.NbrFileNames);
-                    Inc(pw2);
-                    if (pw2^=WideChar(0)) or ((wOpenFile.Flags and OFN_ALLOWMULTISELECT)=0) then break;
-                    pw1 := pw2;
-                  end
-              else
+            if pw2^=WideChar(0) then
+              begin
+                wFileName := unicodestring(pw1);
+                OpenStrParam.sFileName := OpenStrParam.sFileName+StrFromTextDispW(wFileName)+'|';
+                Inc(OpenStrParam.NbrFileNames);
                 Inc(pw2);
-            end;
+                if (pw2^=WideChar(0)) or ((wOpenFile.Flags and OFN_ALLOWMULTISELECT)=0) then break;
+                pw1 := pw2;
+              end
+            else
+              Inc(pw2);
         end;
       FreeMem(pwFileNameBuffer);
     end
@@ -3301,26 +3598,24 @@ begin
           pa1 := paFileNameBuffer;
           pa2 := paFileNameBuffer;
           while pa1<=paFileNameBuffer+((MULTI_MAXLEN+1)-2) do
-            begin
-              if pa2^=AnsiChar(0) then
-                  begin
-                    aFileName := ansistring(pa1);
-                    OpenStrParam.sFileName := OpenStrParam.sFileName+StrFromTextDispA(aFileName)+'|';
-                    Inc(OpenStrParam.NbrFileNames);
-                    Inc(pa2);
-                    if (pa2^=AnsiChar(0)) or ((aOpenFile.Flags and OFN_ALLOWMULTISELECT)=0) then break;
-                    pa1 := pa2;
-                  end
-              else
+            if pa2^=AnsiChar(0) then
+              begin
+                aFileName := ansistring(pa1);
+                OpenStrParam.sFileName := OpenStrParam.sFileName+StrFromTextDispA(aFileName)+'|';
+                Inc(OpenStrParam.NbrFileNames);
                 Inc(pa2);
-            end;
+                if (pa2^=AnsiChar(0)) or ((aOpenFile.Flags and OFN_ALLOWMULTISELECT)=0) then break;
+                pa1 := pa2;
+              end
+            else
+              Inc(pa2);
         end;
       FreeMem(paFileNameBuffer);
     end;
 {$ENDIF}
 end;
 
-function LLCLS_FindFirstNextFile(sFileName: string; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: string; var LastOSError: DWORD): HANDLE;
+function LLCLS_FindFirstNextFile(const sFileName: string; hFindFile: HANDLE; var lpFindFileData: TCustomWin32FindData; var OutFileName: string; var LastOSError: DWORD): HANDLE;
 {$ifndef LLCL_EXTWIN_WIDESTRUCT}   // TWin32FindData = TWin32FindDataA
 {$IFDEF LLCL_UNICODE_API_W}
 var wWin32FindData: TWin32FindDataW;
@@ -3330,7 +3625,7 @@ begin
   if UnicodeEnabledOS then
     begin
       if not LLCLS_FFNF_W(@sFileName[1], hFindFile, wWin32FindData, OutFileName, result, LastOSError) then
-          exit;
+        exit;
       LLCLS_FFNF_WToA(wWin32FindData, lpFindFileData);
       {$IFDEF LLCL_UNICODE_STR_UTF8}
       StrLCopyA(lpFindFileData.cFileName, OutFileName, Length(lpFindFileData.cFileName));   // Saves UTF8 string as Ansi string
@@ -3349,7 +3644,7 @@ begin
 {$ELSE}
     begin
       if not LLCLS_FFNF_A(@sFileName[1], hFindFile, lpFindFileData, OutFileName, result, LastOSError) then
-          exit;
+        exit;
     end;
 {$ENDIF}
 end;
@@ -3362,7 +3657,7 @@ begin
   if UnicodeEnabledOS then
     begin
       if not LLCLS_FFNF_W(@sFileName[1], hFindFile, lpFindFileData, OutFileName, result, LastOSError) then
-          exit;
+        exit;
     end
   else
 {$ENDIF}
@@ -3377,7 +3672,7 @@ begin
 {$ELSE}
     begin
       if not LLCLS_FFNF_A(@sFileName[1], hFindFile, aWin32FindData, OutFileName, result, LastOSError) then
-          exit;
+        exit;
       LLCLS_FFNF_AToW(aWin32FindData, lpFindFileData);
     end;
 {$ENDIF}
@@ -3473,11 +3768,9 @@ end;
 function LLCLS_GetCurrentDirectory(): string;
 {$IFDEF LLCL_UNICODE_API_W}
 var wBuffer: array[0..MAX_PATH+1] of WideChar;  // (Including terminating null character, plus one)
-var wDirectory: unicodestring;
 {$ENDIF}
 {$IFNDEF LLCL_UNICODE_API_W_ONLY}
 var aBuffer: array[0..MAX_PATH+1] of AnsiChar;  // (Including terminating null character, plus one)
-var aDirectory: ansistring;
 {$ENDIF}
 var icount: integer;
 begin
@@ -3489,8 +3782,7 @@ begin
       if icount>0 then
         begin
           wBuffer[icount] := WideChar(0); // (may be absent)
-          wDirectory := unicodestring(wBuffer);
-          result := StrFromTextDispW(wDirectory);
+          result := StrFromTextDispW(wBuffer);
         end;
     end
   else
@@ -3503,8 +3795,7 @@ begin
       if icount>0 then
         begin
           aBuffer[icount] := AnsiChar(0); // (may be absent)
-          aDirectory := ansistring(aBuffer);
-          result := StrFromTextDispA(aDirectory);
+          result := StrFromTextDispA(aBuffer);
         end;
     end;
 {$ENDIF}
@@ -3532,8 +3823,7 @@ begin
       if icount>0 then
         begin
           wBuffer[icount] := WideChar(0); // (may be absent)
-          wName := unicodestring(wBuffer);
-          result := StrFromTextDispW(wName);
+          result := StrFromTextDispW(wBuffer);
         end;
     end
   else
@@ -3547,8 +3837,7 @@ begin
       if icount>0 then
         begin
           aBuffer[icount] := AnsiChar(0); // (may be absent)
-          aName := ansistring(aBuffer);
-          result := StrFromTextDispA(aName);
+          result := StrFromTextDispA(aBuffer);
         end;
     end;
 {$ENDIF}
@@ -3633,7 +3922,7 @@ begin
 {$IFDEF LLCL_UNICODE_API_W_ONLY}
     ;   // (result='' already set)
 {$ELSE}
-  begin
+    begin
       icount := FormatMessageA(dwFlags, lpSource, dwMessageId, dwLanguageId, @aBuffer, Length(aBuffer)-1, Arguments);
       if icount>0 then
         begin
@@ -3679,7 +3968,6 @@ begin
   {$ifend}
 end;
 
-
 function LLCLS_GetTextSize(hWnd: HWND; const sText: string; FontHandle: THandle; var Size: TSize): BOOL;
 {$IFDEF LLCL_UNICODE_API_W}
 var wStr: unicodestring;
@@ -3701,19 +3989,37 @@ begin
   else
 {$ENDIF}
 {$IFDEF LLCL_UNICODE_API_W_ONLY}
-    begin
-      result := false;
-      if CurFontHandle<>0 then      // (result=false already set
-        result := false;            //  tricky instructions to avoid note)
-    end;
+    result := false;
 {$ELSE}
     begin
       aStr := StrToTextDispA(sText);
       result := GetTextExtentPoint32A(ADC, @aStr[1], Length(aStr), Size);
     end;
-  SelectObject(ADC, CurFontHandle);
-  ReleaseDC(hWnd, ADC);
 {$ENDIF}
+  if CurFontHandle<>0 then
+    SelectObject(ADC, CurFontHandle);
+  ReleaseDC(hWnd, ADC);
+end;
+
+function  LLCLS_KeysToShiftState(Keys: Word): LLCL_TShiftState;
+begin
+  result := [];
+  if Keys and MK_SHIFT<>0 then Include(result, ssShift);
+  if Keys and MK_CONTROL<>0 then Include(result, ssCtrl);
+  if Keys and MK_LBUTTON<>0 then Include(result, ssLeft);
+  if Keys and MK_RBUTTON<>0 then Include(result, ssRight);
+  if Keys and MK_MBUTTON<>0 then Include(result, ssMiddle);
+  if LLCL_GetKeyState(VK_MENU) < 0 then Include(result, ssAlt);
+end;
+
+function  LLCLS_KeyDataToShiftState(KeyData: integer): LLCL_TShiftState;
+const
+  AltMask = $20000000;
+begin
+  result := [];
+  if LLCL_GetKeyState(VK_SHIFT)<0 then Include(result, ssShift);
+  if LLCL_GetKeyState(VK_CONTROL)<0 then Include(result, ssCtrl);
+  if KeyData and AltMask<>0 then Include(result, ssAlt);
 end;
 
 function LLCLS_IsAccel(VK: word; const Str: string): BOOL;
@@ -3774,6 +4080,20 @@ begin
     result := Char(CharCode);
 end;
 
+function LLCLS_GetTextAPtr(lpText: LPCSTR): string;
+var aStr: ansistring;
+begin
+  aStr := ansistring(lpText);
+  result := StrFromTextDispA(aStr);
+end;
+
+function LLCLS_GetTextWPtr(lpText: LPCWSTR): string;
+var wStr: unicodestring;
+begin
+  wStr := widestring(lpText);
+  result := StrFromTextDispW(wStr);
+end;
+
 function LLCLS_FormUTF8ToString(const S: utf8string): string;
 begin
 {$IFDEF LLCL_UNICODE_STR_UTF8}
@@ -3792,8 +4112,490 @@ begin
 {$ELSE} {$IFDEF LLCL_UNICODE_STR_UTF16}
   result := UTF8Decode(S);
 {$ELSE}
+  {$IFDEF FPC}
+  result := UTF8ToAnsi(S);       // Specific Ansi only mode
+  {$ELSE FPC}
+  result := S;
+  {$ENDIF FPC}
+{$ENDIF} {$ENDIF}
+end;
+
+procedure LLCLS_LV_SetColumnWithTitleText(MsgType: Cardinal; hWnd: HWND; iCol: integer; const lvc: LV_COLUMN; const S: string);
+{$IFDEF LLCL_UNICODE_API_W}
+var wStr: unicodestring;
+{$ENDIF}
+{$IFNDEF LLCL_UNICODE_API_W_ONLY}
+var aStr: ansistring;
+{$ENDIF}
+var Msg: cardinal;
+var Tmplvc: LV_COLUMN;
+begin
+  Move(lvc, Tmplvc, SizeOf(Tmplvc));  // Same size
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    begin
+      case MsgType of
+      1:    Msg := LVM_INSERTCOLUMNW;
+      else  Msg := LVM_SETCOLUMNW;
+      end;
+      wStr := StrToTextDispW(S);
+      Tmplvc.pszText := @wStr[1];
+      SendMessageW(hWnd, Msg, iCol, LPARAM(@Tmplvc));
+    end
+  else
+{$ENDIF}
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+    ;
+{$ELSE}
+    begin
+      case MsgType of
+      1:    Msg := LVM_INSERTCOLUMNA;
+      else  Msg := LVM_SETCOLUMNA;
+      end;
+      aStr := StrToTextDispA(S);
+      Tmplvc.pszText := @aStr[1];
+      SendMessageA(hWnd, Msg, iCol, LPARAM(@Tmplvc));
+    end;
+{$ENDIF}
+end;
+
+function LLCLS_LV_GetColumnTitleText(hWnd: HWND; iCol: integer): string;
+{$IFDEF LLCL_UNICODE_API_W}
+var wBuffer: array[0..LLCLC_LISTVIEW_MAXCHAR] of WideChar;  // (Including terminating null character)
+{$ENDIF}
+{$IFNDEF LLCL_UNICODE_API_W_ONLY}
+var aBuffer: array[0..LLCLC_LISTVIEW_MAXCHAR] of AnsiChar;  // (Including terminating null character)
+{$ENDIF}
+var lvc: LV_COLUMN;
+begin
+  result := '';
+  FillChar(lvc, SizeOf(lvc), 0);
+  lvc.mask := LVCF_TEXT;
+  lvc.cchTextMax := LLCLC_LISTVIEW_MAXCHAR;
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    begin
+      lvc.pszText := @wBuffer;
+      if Boolean(SendMessageW(hWnd, LVM_GETCOLUMNW, iCol, LPARAM(@lvc))) then
+        begin
+          wBuffer[LLCLC_LISTVIEW_MAXCHAR] := WideChar(0);
+          result := StrFromTextDispW(wBuffer);
+        end;
+    end
+  else
+{$ENDIF}
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+    ;   // (result='' already set)
+{$ELSE}
+    begin
+      lvc.pszText := @aBuffer;
+      if Boolean(SendMessageA(hWnd, LVM_GETCOLUMNA, iCol, LPARAM(@lvc))) then
+        begin
+          aBuffer[LLCLC_LISTVIEW_MAXCHAR] := AnsiChar(0);
+          result := StrFromTextDispA(aBuffer);
+        end;
+    end;
+{$ENDIF}
+end;
+
+function LLCLS_LV_GetItemText(hWnd: HWND; iItem: integer; iSubItem: integer): string;
+{$IFDEF LLCL_UNICODE_API_W}
+var wBuffer: array[0..LLCLC_LISTVIEW_MAXCHAR] of WideChar;  // (Including terminating null character)
+{$ENDIF}
+{$IFNDEF LLCL_UNICODE_API_W_ONLY}
+var aBuffer: array[0..LLCLC_LISTVIEW_MAXCHAR] of AnsiChar;  // (Including terminating null character)
+{$ENDIF}
+var lvi: LV_ITEM;
+begin
+  result := '';
+  FillChar(lvi, SizeOf(lvi), 0);
+  lvi.mask := LVIF_TEXT;
+  lvi.iItem := iItem;
+  lvi.iSubItem := iSubItem;
+  lvi.cchTextMax := LLCLC_LISTVIEW_MAXCHAR;
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    begin
+      lvi.pszText := @wBuffer;
+      if Boolean(SendMessageW(hWnd, LVM_GETITEMW, 0, LPARAM(@lvi))) then
+        begin
+          wBuffer[LLCLC_LISTVIEW_MAXCHAR] := WideChar(0);
+          result := StrFromTextDispW(wBuffer);
+        end;
+    end
+  else
+{$ENDIF}
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+    ;   // (result='' already set)
+{$ELSE}
+    begin
+      lvi.pszText := @aBuffer;
+      if Boolean(SendMessageA(hWnd, LVM_GETITEMA, 0, LPARAM(@lvi))) then
+        begin
+          aBuffer[LLCLC_LISTVIEW_MAXCHAR] := AnsiChar(0);
+          result := StrFromTextDispA(aBuffer);
+        end;
+    end;
+{$ENDIF}
+end;
+
+procedure LLCLS_LV_SetItemWithText(MsgType: Cardinal; hWnd: HWND; const lvi: LV_ITEM; const S: string);
+{$IFDEF LLCL_UNICODE_API_W}
+var wStr: unicodestring;
+{$ENDIF}
+{$IFNDEF LLCL_UNICODE_API_W_ONLY}
+var aStr: ansistring;
+{$ENDIF}
+var Msg: cardinal;
+var Tmplvi: LV_ITEM;
+begin
+  Move(lvi, Tmplvi, SizeOf(Tmplvi));  // Same size
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    begin
+      case MsgType of
+      1:    Msg := LVM_INSERTITEMW;
+      else  Msg := LVM_SETITEMW;
+      end;
+      wStr := StrToTextDispW(S);
+      Tmplvi.pszText := @wStr[1];
+      SendMessageW(hWnd, Msg, 0, LPARAM(@Tmplvi));
+    end
+  else
+{$ENDIF}
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+    ;
+{$ELSE}
+    begin
+      case MsgType of
+      1:    Msg := LVM_INSERTITEMA;
+      else  Msg := LVM_SETITEMA;
+      end;
+      aStr := StrToTextDispA(S);
+      Tmplvi.pszText := @aStr[1];
+      SendMessageA(hWnd, Msg, 0, LPARAM(@Tmplvi));
+    end;
+{$ENDIF}
+end;
+
+function LLCLS_LV_ImageList_Create(cx: integer; cy: integer; flags: cardinal; cInitial: integer; cGrow: integer): HIMAGELIST;
+var PAddrImageList_Create: function(cx: integer; cy: integer; flags: cardinal; cInitial: integer; cGrow: integer): HIMAGELIST; stdcall;
+begin
+  result := 0;
+  {$IFDEF LLCL_OBJFPC_MODE}FARPROC(PAddrImageList_Create){$ELSE}@PAddrImageList_Create{$ENDIF}
+    := LLCL_GetProcAddress(LLCL_GetModuleHandle(CCOMCTL32), 'ImageList_Create');
+  if Assigned(PAddrImageList_Create) then
+		result := PAddrImageList_Create(cx, cy, flags, cInitial, cGrow);
+end;
+
+function LLCLS_LV_ImageList_Destroy(himl: HIMAGELIST): BOOL;
+var PAddrImageList_Destroy: function(himl: HIMAGELIST): BOOL; stdcall;
+begin
+  result := false;
+  {$IFDEF LLCL_OBJFPC_MODE}FARPROC(PAddrImageList_Destroy){$ELSE}@PAddrImageList_Destroy{$ENDIF}
+    := LLCL_GetProcAddress(LLCL_GetModuleHandle(CCOMCTL32), 'ImageList_Destroy');
+  if Assigned(PAddrImageList_Destroy) then
+		result := PAddrImageList_Destroy(himl);
+end;
+
+function LLCLS_SH_BrowseForFolder(const BrowseInfo: TBrowseInfo; const sTitle: string; const sRoot: string; var sDirName: string): BOOl;
+{$IFDEF LLCL_UNICODE_API_W}
+var wBuffer: array[0..MAX_PATH+1] of WideChar;  // (Including terminating null character, plus one)
+var wTitle, wRoot: unicodestring;
+var wBrowseInfo: TBrowseInfoW;
+{$ENDIF}
+{$IFNDEF LLCL_UNICODE_API_W_ONLY}
+var aBuffer: array[0..MAX_PATH+1] of AnsiChar;  // (Including terminating null character, plus one)
+var aTitle, aRoot: ansistring;
+var aBrowseInfo: TBrowseInfoA;
+{$ENDIF}
+var pIIDL: PItemIDList;
+begin
+  result := false;
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    begin
+      Move(BrowseInfo, wBrowseInfo, SizeOf(wBrowseInfo)); // Same size
+      wTitle := StrToTextDispW(sTitle);
+      wBrowseInfo.lpszTitle := @wTitle[1];
+      wBrowseInfo.pszDisplayName := @wBuffer;
+      if sRoot<>'' then
+        begin
+          wRoot := StrToTextDispW(sRoot);
+          wBrowseInfo.lParam := LPARAM(PointerToNativeUInt(@wRoot[1]));
+        end;
+      wBrowseInfo.lpfn := @LLCLS_SH_BrowseForFolder_CB;
+      pIIDL := SHBrowseForFolderW(wBrowseInfo);
+      if pIIDL<>nil then
+        begin
+          FillChar(wBuffer, SizeOf(wBuffer), 0);
+          if SHGetPathFromIDListW(pIIDL, @wBuffer) then
+            begin
+              result := true;
+              wBuffer[MAX_PATH+1] := WideChar(0);
+              sDirName := StrFromTextDispW(wBuffer);
+            end;
+          CoTaskMemFree(pIIDL);
+        end;
+    end
+  else
+{$ENDIF}
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+    ;   // (result=false already set)
+{$ELSE}
+    begin
+      Move(BrowseInfo, aBrowseInfo, SizeOf(aBrowseInfo)); // Same size
+      aTitle := StrToTextDispA(sTitle);
+      aBrowseInfo.lpszTitle := @aTitle[1];
+      aBrowseInfo.pszDisplayName := @aBuffer;
+      if sRoot<>'' then
+        begin
+          aRoot := StrToTextDispA(sRoot);
+          aBrowseInfo.lParam := LPARAM(PointerToNativeUInt(@aRoot[1]));
+        end;
+      aBrowseInfo.lpfn := @LLCLS_SH_BrowseForFolder_CB;
+      pIIDL := SHBrowseForFolderA(aBrowseInfo);
+      if pIIDL<>nil then
+        begin
+          FillChar(aBuffer, SizeOf(aBuffer), 0);
+          if SHGetPathFromIDListA(pIIDL, @aBuffer) then
+            begin
+              result := true;
+              aBuffer[MAX_PATH+1] := AnsiChar(0);
+              sDirName := StrFromTextDispA(aBuffer);
+            end;
+          CoTaskMemFree(pIIDL);
+        end;
+    end;
+{$ENDIF}
+end;
+// Callback function for LLCLS_SH_BrowseForFolder
+function LLCLS_SH_BrowseForFolder_CB(hwnd: HWND; uMsg: UINT; lParam: LPARAM; lpData: LPARAM): longint; stdcall;
+{$IFDEF LLCL_UNICODE_API_W}
+var wBuffer: array[0..MAX_PATH+1] of WideChar;  // (Including terminating null character, plus one)
+{$ENDIF}
+{$IFNDEF LLCL_UNICODE_API_W_ONLY}
+var aBuffer: array[0..MAX_PATH+1] of AnsiChar;  // (Including terminating null character, plus one)
+{$ENDIF}
+var InvalidateOK: boolean;
+begin
+  result := 0;
+  InvalidateOK := false;
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    begin
+      case uMsg of
+      BFFM_INITIALIZED:
+	      if lpData<>0 then
+          SendMessageW(hwnd, BFFM_SETSELECTIONW, Ord(true), lpData);
+      BFFM_SELCHANGED:
+        InvalidateOK := (not SHGetPathFromIDListW(PItemIDList(lParam), @wBuffer));
+      BFFM_VALIDATEFAILEDW:
+        begin
+          InvalidateOK := true;
+          result := 1;
+        end;
+      end;
+      if InvalidateOK then
+        SendMessageW(hwnd, BFFM_ENABLEOK, 0, 0);
+    end
+  else
+{$ENDIF}
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+    ;
+{$ELSE}
+    begin
+      case uMsg of
+      BFFM_INITIALIZED:
+	      if lpData<>0 then
+          SendMessageA(hwnd, BFFM_SETSELECTIONA, Ord(true), lpData);
+      BFFM_SELCHANGED:
+        InvalidateOK := (not SHGetPathFromIDListA(PItemIDList(lParam), @aBuffer));
+      BFFM_VALIDATEFAILEDA:
+        begin
+          InvalidateOK := true;
+          result := 1;
+        end;
+      end;
+      if InvalidateOK then
+        SendMessageA(hwnd, BFFM_ENABLEOK, 0, 0);
+    end;
+{$ENDIF}
+end;
+
+// Note: FPC uses specific code to handle Ini files (i.e. not the Windows APIs)
+//       Currently, strings are always rawbytestring by default, except for the
+//       FileName (as it depends of the SysUtils functions)
+function LLCLS_INI_ReadString(const FileName, Section, Ident, Default: string): string;
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+var wFileName, wSection, wIdent, wDefault: unicodestring;
+var wBuffer: array[0..4096] of WideChar;  // (Including terminating null character)
+{$ELSE}
+var aFileName, aSection, aIdent, aDefault: ansistring;
+var aBuffer: array[0..4096] of AnsiChar;  // (Including terminating null character)
+{$ENDIF}
+begin
+  result := Default;
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+  if UnicodeEnabledOS then
+    begin
+      wFileName := unicodestring(FileName);
+      wSection := unicodestring(Section);
+      wIdent := unicodestring(Ident);
+      wDefault := unicodestring(Default);
+      if GetPrivateProfileStringW(@wSection[1], @wIdent[1], @wDefault[1], @wBuffer, SizeOf(wBuffer), @wFileName[1])>0 then
+        result := string(unicodestring(wBuffer));
+    end;
+{$ELSE}
+  aFileName := LLCLS_INI_ForceAnsi(FileName, true);
+  aSection := LLCLS_INI_ForceAnsi(Section, false);
+  aIdent := LLCLS_INI_ForceAnsi(Ident, false);
+  aDefault := LLCLS_INI_ForceAnsi(Default, false);
+  if GetPrivateProfileStringA(@aSection[1], @aIdent[1], @aDefault[1], @aBuffer, SizeOf(aBuffer), @aFileName[1])>0 then
+    result := string(ansistring(aBuffer));
+{$ENDIF}
+end;
+
+procedure LLCLS_INI_WriteString(const FileName, Section, Ident, Value: string);
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+var wFileName, wSection, wIdent, wValue: unicodestring;
+{$ELSE}
+var aFileName, aSection, aIdent, aValue: ansistring;
+{$ENDIF}
+begin
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+  if UnicodeEnabledOS then
+    begin
+      wFileName := unicodestring(FileName);
+      wSection := unicodestring(Section);
+      wIdent := unicodestring(Ident);
+      wValue := unicodestring(Value);
+      WritePrivateProfileStringW(@wSection[1], @wIdent[1], @wValue[1], @wFileName[1]);
+    end;
+{$ELSE}
+  aFileName := LLCLS_INI_ForceAnsi(FileName, true);
+  aSection := LLCLS_INI_ForceAnsi(Section, false);
+  aIdent := LLCLS_INI_ForceAnsi(Ident, false);
+  aValue := LLCLS_INI_ForceAnsi(Value, false);
+  WritePrivateProfileStringA(@aSection[1], @aIdent[1], @aValue[1], @aFileName[1]);
+{$ENDIF}
+end;
+
+procedure LLCLS_INI_Delete(const FileName: string; Section, Ident: PChar);
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+var wFileName, wSection, wIdent: unicodestring;
+{$ELSE}
+var aFileName, aSection, aIdent: ansistring;
+{$ENDIF}
+begin
+{$IFDEF LLCL_UNICODE_API_W_ONLY}
+  if UnicodeEnabledOS then
+    begin
+      wFileName := unicodestring(FileName);
+      wSection := unicodestring(Section);
+      if Ident=nil then   // Delete Section
+        WritePrivateProfileStringW(@wSection[1], nil, nil, @wFileName[1])
+      else                // Delete Key
+        begin
+          wIdent := unicodestring(Ident);
+          WritePrivateProfileStringW(@wSection[1], @wIdent[1], nil, @wFileName[1]);
+        end;
+    end;
+{$ELSE}
+  aFileName := LLCLS_INI_ForceAnsi(FileName, true);
+  aSection := LLCLS_INI_ForceAnsi(Section, false);
+  if Ident=nil then       // Delete Section
+    WritePrivateProfileStringA(@aSection[1], nil, nil, @aFileName[1])
+  else                    // Delete Key
+    begin
+      aIdent := LLCLS_INI_ForceAnsi(string(Ident), false);
+      WritePrivateProfileStringA(@aSection[1], @aIdent[1], nil, @aFileName[1]);
+    end;
+{$ENDIF}
+end;
+
+function LLCLS_CLPB_GetTextFormat(): cardinal;
+begin
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    result := CF_UNICODETEXT
+  else
+{$ENDIF}
+    result := CF_TEXT;
+end;
+
+// Must be coherent with LLCLS_CLPB_GetTextFormat
+function LLCLS_CLPB_SetTextPtr(const sText: string; var iLen: cardinal): Pointer;
+{$IFDEF LLCL_UNICODE_API_W}
+var wStr: unicodestring;
+{$ENDIF}
+var aStr: ansistring;
+begin
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    begin
+      wStr := StrToTextDispW(sText);
+      result := @wStr[1];
+      iLen := (length(wStr) + 1) * 2;
+    end
+  else
+{$ENDIF}
+    begin
+      aStr := StrToTextDispA(sText);
+      result := @aStr[1];
+      iLen := length(aStr) + 1;
+    end;
+end;
+
+// Must be coherent with LLCLS_CLPB_GetTextFormat
+function LLCLS_CLPB_GetText(lpText: Pointer): string;
+begin
+{$IFDEF LLCL_UNICODE_API_W}
+  if UnicodeEnabledOS then
+    result := LLCLS_GetTextWPtr(LPCWSTR(lpText))
+  else
+{$ENDIF}
+    result := LLCLS_GetTextAPtr(LPCSTR(lpText));
+end;
+
+{$IFDEF LLCL_OPT_IMGTRANSPARENT}
+function LLCLS_CheckAlphaBlend(): boolean;
+begin
+  // CheckWin32Version already done
+  if HasAlphaBlend=0 then
+    begin
+      HasAlphaBlend := 1;
+      // (Uses GdiAlphaBlend in Gdi32.dll, instead of AlphaBlend
+      //  in Msimg32.dll to avoid to load this dll)
+      {$IFDEF LLCL_OBJFPC_MODE}FARPROC(PAddrAlphaBlend){$ELSE}@PAddrAlphaBlend{$ENDIF}
+        := LLCL_GetProcAddress(LLCL_GetModuleHandle(GDI32), 'GdiAlphaBlend');
+      if Assigned(PAddrAlphaBlend) then
+        HasAlphaBlend := 2;
+    end;
+  result := (HasAlphaBlend=2);
+end;
+
+function LLCLS_AlphaBlend(hdcDest: HDC; xoriginDest, yoriginDest, wDest, hDest: integer; hdcSrc: HDC; xoriginSrc, yoriginSrc, wSrc, hSrc: integer; ftn: BLENDFUNCTION): BOOL;
+begin
+  // (PAddrAlphaBlend=nil theoretically impossible at this step)
+  result := PAddrAlphaBlend(hdcDest, xoriginDest, yoriginDest, wDest, hDest, hdcSrc, xoriginSrc, yoriginSrc, wSrc, hSrc, ftn);
+end;
+{$ENDIF LLCL_OPT_IMGTRANSPARENT}
+
+function LLCLS_INI_ForceAnsi(const S: string; Convert: boolean): ansistring;
+begin
+{$IFDEF LLCL_UNICODE_STR_UTF8}
+  result := S;
+  {$IFDEF LLCL_FPC_CPSTRING}
+  SetCodePage(rawbytestring(result), LLCL_GetACP(), Convert);
+  {$ENDIF}
+{$ELSE} {$IFDEF LLCL_UNICODE_STR_UTF16}
+  result := ansistring(S);
+{$ELSE}
   result := S;
 {$ENDIF} {$ENDIF}
+  if @result[1]=nil then
+    result := AnsiChar(#00);
 end;
 
 {$IFDEF FPC}
@@ -3805,11 +4607,11 @@ function LLCLS_UTF8ToSys(const S: utf8string): ansistring;
 function LLCLS_UTF8ToSys(const S: string): string;
 {$ENDIF UNICODE}
 begin
-{$IFDEF LLCL_FPC_UTF8RTL}
+{$if Defined(LLCL_FPC_UTF8RTL) or Defined(LLCL_UNICODE_STR_ANSI)}
   result := S;
-{$ELSE}
+{$else}
   result := UTF8ToAnsi(S);
-{$ENDIF}
+{$ifend}
 end;
 
 {$IFDEF UNICODE}
@@ -3818,14 +4620,14 @@ function LLCLS_SysToUTF8(const S: ansistring): utf8string;
 function LLCLS_SysToUTF8(const S: string): string;
 {$ENDIF UNICODE}
 begin
-{$IFDEF LLCL_FPC_UTF8RTL}
+{$if Defined(LLCL_FPC_UTF8RTL) or Defined(LLCL_UNICODE_STR_ANSI)}
   result := S;
-{$ELSE}
+{$else}
   result := AnsiToUTF8(S);
   {$IFDEF LLCL_FPC_CPSTRING}
   SetCodePage(rawbytestring(result), StringCodePage(S), false);
   {$ENDIF}
-{$ENDIF}
+{$ifend}
 end;
 
 {$IFDEF UNICODE}
@@ -3859,7 +4661,35 @@ begin
   SetCodePage(rawbytestring(result), CP_ACP, false);
   {$ENDIF}
 end;
+
+{$IFDEF UNICODE}
+function LLCLS_UTF8LowerCase(const S: utf8string): utf8string;
+{$ELSE UNICODE}
+function LLCLS_UTF8LowerCase(const S: string): string;
+{$ENDIF UNICODE}
+begin
+  {$IFDEF LLCL_UNICODE_STR_UTF16}
+  result := utf8string(LLCLS_CharLowerBuff(unicodestring(S)));
+  {$ELSE}
+  result := LLCLS_CharLowerBuff(S);
+  {$ENDIF}
+end;
+
+{$IFDEF UNICODE}
+function LLCLS_UTF8UpperCase(const S: utf8string): utf8string;
+{$ELSE UNICODE}
+function LLCLS_UTF8UpperCase(const S: string): string;
+{$ENDIF UNICODE}
+begin
+  {$IFDEF LLCL_UNICODE_STR_UTF16}
+  result := utf8string(LLCLS_CharUpperBuff(unicodestring(S)));
+  {$ELSE}
+  result := LLCLS_CharUpperBuff(S);
+  {$ENDIF}
+end;
+
 {$ENDIF FPC}
+
 //------------------------------------------------------------------------------
 
 //
@@ -3881,6 +4711,8 @@ begin
 {$ELSE}
   result := S;
 {$ENDIF} {$ENDIF}
+  if @result[1]=nil then
+    result := AnsiChar(#00);
 end;
 
 //
@@ -3909,6 +4741,8 @@ begin
 {$ELSE}
   result := unicodestring(S);
 {$ENDIF} {$ENDIF}
+  if @result[1]=nil then
+    result := UnicodeChar(#00);
 end;
 
 //

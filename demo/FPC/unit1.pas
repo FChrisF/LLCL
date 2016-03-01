@@ -9,14 +9,14 @@ unit Unit1;
   {$mode objfpc}{$H+}
 //  {$mode delphi}
 //  {$mode objfpc}{$modeswitch unicodestrings}{$H+}   // Requires FPC 2.7.1+
-//  {$mode delphiunicode}                             //   (See LLCL README.txt)
+//  {$mode delphiunicode}{$codepage UTF8}             //   (See LLCL README.txt)
 {$ENDIF}
 {$IFDEF FPC_OBJFPC} {$DEFINE IS_FPC_OBJFPC_MODE} {$ENDIF}
 
 interface
 
 uses
-  SysUtils, {$IFDEF FPC}FileUtil, LCLType,{$ELSE} Variants, XPMan,{$ENDIF}
+  SysUtils, {$IFDEF FPC}LazUTF8, LCLType,{$ELSE} Variants, XPMan,{$ENDIF}
   Classes, Graphics, Controls, Forms, Dialogs, StdCtrls, ExtCtrls,
   ComCtrls, Menus;
 
@@ -146,9 +146,9 @@ end;
 procedure TForm1.CreateParams(var Params : TCreateParams);
 begin
   inherited;
-  Form1.CheckBox1.InitialAlignment := taLeftJustify;    // Note: TCheckBox has an alignment
-  Form1.CheckBox3.InitialAlignment := taLeftJustify;    //    property since Lazarus 1.4
-  Form1.RadioButton2.InitialAlignment := taLeftJustify;
+  Form1.CheckBox1.Alignment := taLeftJustify;    // Note: TCheckBox has an alignment
+  Form1.CheckBox3.Alignment := taLeftJustify;    //    property since Lazarus 1.4
+  Form1.RadioButton2.Alignment := taLeftJustify;
 end;
 {$IFEND}
 {$ENDIF}
@@ -324,7 +324,6 @@ begin
   //    (Because Form1 has KeyPreview=True property)
   //    Only the character code is present here (see FormKeyDown, FormKeyUp)
   MemoAddLineFmt(Memo1,'FormKeyPress #%d ''%s''', [Ord(Key),
-    // (Note: warning for SysToUTF8 with Lazarus 1.5+ and standard LCL)
     {$if Defined(FPC) and not Defined(UNICODE)}SysToUTF8(Key){$else}Key{$ifend}]);  // Char type is not UTF8
 end;
 

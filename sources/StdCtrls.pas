@@ -12,15 +12,26 @@ unit StdCtrls;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * Modification: background color support
+    * TWinControl: notifications for child controls modified
+    * TEdit, TMemo, TStaticText, TLabel, TCheckBox, TRadioButton: 'Alignment' property moved to TVisualControl in Control.pas (not standard)
+    * TEdit (Delphi), TCheckBox (FPC): 'InitialAlignment' property removed
+    * TComboBox, TListBox: 'Sorted' property now accessible (design time only)
+    * TComboBox: 'Style' property now accessible (design time only)
+    * TEdit: 'PasswordChar' property now accessible (design time only)
+    * TMemo, TLabel: 'WordWrap' property now accessible (design time only)
+    * TMemo: 'ScrollBars' property now accessible (design time only)
+    * TStaticText: 'BorderStyle' property now accessible (design time only)
    Version 1.00:
     * TStaticText implemented
     * TMemo: ScrollBars and WordWrap (design time only), WantReturns and WantTabs added
@@ -97,10 +108,9 @@ uses
   Classes, Controls;
 
 type
-{$ifdef  LLCL_OPT_STDLABEL}
+{$ifdef LLCL_OPT_STDLABEL}
   TLabel = class(TGraphicControl)
   private
-    fAlignment: TAlignment;
     fWordWrap: boolean;
     procedure PaintText(AddFlags: cardinal; var R: TRect);
   protected
@@ -112,6 +122,7 @@ type
     procedure UpdateTextSize();
   public
     constructor Create(AOwner: TComponent); override;
+    property  WordWrap: boolean read fWordWrap write fWordWrap; // Run-time modification ignored; write present only for dynamical control creation purpose
   end;
 {$endif}
 
@@ -121,7 +132,7 @@ type
     fCancel: boolean;
   protected
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; override;
     procedure AdjustTextSize(var Size: TSize); override;
@@ -135,26 +146,25 @@ type
   private
     fPassWordChar: char;
     fReadOnly: boolean;
-    fAlignment: TAlignment;
     fCreateFlags: cardinal;
     fOnChangeOK: boolean;
     EOnChange: TNotifyEvent;
     procedure SetReadOnly(Value: boolean);
   protected
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     function  GetText(): string;
     procedure SetText(const Value: string);
-    procedure ComponentNotif(var Msg: TMessage); override;
+    function  ComponentNotif(var Msg: TMessage): boolean; override;
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; override;
     procedure WMSetFocus(var Msg: TWMSetFocus); message WM_SETFOCUS;
   public
     constructor Create(AOwner: TComponent); override;
     procedure SelectAll;
     property  Text: string read GetText write SetText;
+    property  PassWordChar: char read fPassWordChar write fPassWordChar;  // Run-time modification ignored; write present only for dynamical control creation purpose
     property  ReadOnly: boolean read fReadOnly write SetReadOnly;
-    property  InitialAlignment: TAlignment read fAlignment write fAlignment;  // (For Delphi)
     property  OnChange: TNotifyEvent read EOnChange write EOnChange;
   end;
 
@@ -184,7 +194,7 @@ type
     fWantReturns: boolean;
     fWantTabs: boolean;
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     function  SubProperty(const SubPropName: string): TPersistent; override;
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; override;
@@ -192,6 +202,8 @@ type
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
     procedure Clear;
+    property  ScrollBars: TScrollStyle read fScrollBars write fScrollBars;  // Run-time modification ignored; write present only for dynamical control creation purpose
+    property  WordWrap: boolean read fWordWrap write fWordWrap; // Run-time modification ignored; write present only for dynamical control creation purpose
     property  Lines: TMemoLines read fLines;
     property  WantReturns: boolean read fWantReturns write fWantReturns;
     property  WantTabs: boolean read fWantTabs write fWantTabs;
@@ -203,7 +215,6 @@ type
   private
     fState: TCheckBoxState;
     fAllowGrayed: boolean;
-    fAlignment: TAlignment;     // default = taRightJustify  (taCenter not possible)
     fCreateFlags: cardinal;
     procedure SetChecked(const Value: boolean);
     function  GetChecked(): boolean;
@@ -212,21 +223,20 @@ type
     function  GetState(): TCheckBoxState;
   protected
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
-    procedure ComponentNotif(var Msg: TMessage); override;
+    function  ComponentNotif(var Msg: TMessage): boolean; override;
     procedure AdjustTextSize(var Size: TSize); override;
   public
     constructor Create(AOwner: TComponent); override;
     property  Checked: boolean read GetChecked write SetChecked;
     property  State: TCheckBoxState read GetState write SetState;
     property  AllowGrayed: boolean read fAllowGrayed write SetAllowGrayed;
-    property  InitialAlignment: TAlignment read fAlignment write fAlignment;  // (For FPC)
   end;
 
   TRadioButton = class(TCheckBox) //should be vice versa
   protected
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; override;
     function  GetSpecTabStop(): boolean; override;
   public
@@ -236,7 +246,7 @@ type
   TGroupBox = class(TWinControl)
   protected
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     function  GetSpecTabStop(): boolean; override;
     procedure AdjustTextSize(var Size: TSize); override;
   public
@@ -279,7 +289,7 @@ type
     function  GetCount(): integer; virtual;
     procedure SetItemIndex(Value: integer); virtual;
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     function  SubProperty(const SubPropName: string): TPersistent; override;
   public
@@ -290,6 +300,7 @@ type
     property  ItemCount: integer read GetCount;
     property  ItemIndex: integer read fItemIndex write SetItemIndex;
     property  ItemStrings: TStrings read GetItems write SetItems;
+    property  Sorted: boolean read fSorted write fSorted;       // Run-time modification ignored; write present only for dynamical control creation purpose
   end;
 
   TComboBoxStyle =
@@ -312,16 +323,17 @@ type
   protected
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     function  GetText(): string;
     procedure SetText(const Value: string);
     function  ColorForSubCont(SubContMsg: integer; SubConthWnd: THandle): boolean; override;
-    procedure ComponentNotif(var Msg: TMessage); override;
+    function  ComponentNotif(var Msg: TMessage): boolean; override;
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; override;
   public
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
     procedure SelectAll;
+    property  Style: TComboBoxStyle read fStyle write fStyle;   // Run-time modification ignored; write present only for dynamical control creation purpose
     property  Text: string read GetText write SetText;
     property  DroppedDown: boolean read GetDroppedDown write SetDroppedDown;
     property  OnChange: TNotifyEvent read EOnChange write EOnChange;
@@ -329,8 +341,8 @@ type
 
   TListBox = class(TCustomBox)
   protected
-    procedure CreateParams(var Params : TCreateParams); override;
-    procedure ComponentNotif(var Msg: TMessage); override;
+    procedure CreateParams(var Params: TCreateParams); override;
+    function  ComponentNotif(var Msg: TMessage): boolean; override;
   public
     constructor Create(AOwner: TComponent); override;
   end;
@@ -341,16 +353,16 @@ type
   TStaticText = class(TWinControl)
   private
     fBorderStyle: TStaticBorderStyle;
-    fAlignment: TAlignment;
   protected
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     procedure AdjustTextSize(var Size: TSize); override;
   public
     constructor Create(AOwner: TComponent); override;
+    property  BorderStyle: TStaticBorderStyle read fBorderStyle write fBorderStyle; // Run-time modification ignored; write present only for dynamical control creation purpose
   end;
 
-{$ifndef  LLCL_OPT_STDLABEL}
+{$ifndef LLCL_OPT_STDLABEL}
   TLabel = class(TStaticText);
 {$endif}
 
@@ -389,7 +401,7 @@ end;
 
 { TButton }
 
-constructor TButton.Create(AOwner:TComponent);
+constructor TButton.Create(AOwner: TComponent);
 begin
   inherited;
   ATType := ATTButton;
@@ -405,7 +417,7 @@ begin
       TPCustomForm(ParentForm).HandleDefButton := Handle;
 end;
 
-procedure TButton.CreateParams(var Params : TCreateParams);
+procedure TButton.CreateParams(var Params: TCreateParams);
 begin
   inherited;
   with Params do
@@ -443,7 +455,7 @@ end;
 
 { TEdit }
 
-constructor TEdit.Create(AOwner:TComponent);
+constructor TEdit.Create(AOwner: TComponent);
 begin
   inherited;
   ATType := ATTEdit;
@@ -459,7 +471,7 @@ begin
     SetReadOnly(fReadOnly);
 end;
 
-procedure TEdit.CreateParams(var Params : TCreateParams);
+procedure TEdit.CreateParams(var Params: TCreateParams);
 const EAlignStyle: array[TAlignment] of cardinal =(ES_LEFT , ES_RIGHT, ES_CENTER);
 begin
   inherited;
@@ -468,7 +480,7 @@ begin
     if fPassWordChar='*' then
       fCreateFlags := fCreateFlags or ES_PASSWORD;
   end;
-  fCreateFlags := fCreateFlags or EAlignStyle[fAlignment];
+  fCreateFlags := fCreateFlags or EAlignStyle[Alignment];
   with Params do
     begin
       Style := Style or fCreateFlags;
@@ -478,9 +490,9 @@ begin
 end;
 
 // WM_COMMAND message coming from form
-procedure TEdit.ComponentNotif(var Msg: TMessage);
+function TEdit.ComponentNotif(var Msg: TMessage): boolean;
 begin
-  inherited;
+  result := inherited ComponentNotif(Msg);
   case TWMCommand(Msg).NotifyCode of
   EN_CHANGE:
     if fOnChangeOK and Assigned(EOnChange) then
@@ -513,8 +525,8 @@ begin
 end;
 
 procedure TEdit.ReadProperty(const PropName: string; Reader: TReader);
-const Properties: array[0..3] of PChar = (
-    'OnChange', 'PasswordChar', 'ReadOnly', 'Alignment');
+const Properties: array[0..2] of PChar = (
+    'OnChange', 'PasswordChar', 'ReadOnly');
 var Tmp: string;
 begin
   case StringIndex(PropName, Properties) of
@@ -525,7 +537,6 @@ begin
             fPassWordChar := Tmp[1];
         end;
     2 : fReadOnly := Reader.BooleanProperty;
-    3 : Reader.IdentProperty(fAlignment, TypeInfo(TAlignment));
     else inherited;
   end;
 end;
@@ -623,7 +634,7 @@ begin
   SetText(fLines.Strings.Text);
 end;
 
-procedure TMemo.CreateParams(var Params : TCreateParams);
+procedure TMemo.CreateParams(var Params: TCreateParams);
 begin
   fCreateFlags := ES_MULTILINE or ES_WANTRETURN;
   case fScrollBars of
@@ -672,11 +683,11 @@ end;
 
 { TCheckBox }
 
-constructor TCheckBox.Create(AOwner:TComponent);
+constructor TCheckBox.Create(AOwner: TComponent);
 begin
   inherited;
   ATType := ATTCheckBox;
-  fAlignment := taRightJustify;
+  Alignment := taRightJustify;    // default = taRightJustify  (taCenter not possible)
   AutoSize := true;
 end;
 
@@ -690,10 +701,10 @@ const
   CBAlignStyle: array[TAlignment] of cardinal = (BS_LEFTTEXT, 0, 0);
   CBGrayStyle: array[boolean] of cardinal = (BS_AUTOCHECKBOX, BS_AUTO3STATE);
 
-procedure TCheckBox.CreateParams(var Params : TCreateParams);
+procedure TCheckBox.CreateParams(var Params: TCreateParams);
 begin
   if fCreateFlags=0 then
-    fCreateFlags := CBGrayStyle[fAllowGrayed] or CBAlignStyle[fAlignment];
+    fCreateFlags := CBGrayStyle[fAllowGrayed] or CBAlignStyle[Alignment];
   inherited;
   with Params do
     begin
@@ -713,8 +724,8 @@ begin
 end;
 
 procedure TCheckBox.ReadProperty(const PropName: string; Reader: TReader);
-const Properties: array[0..3] of PChar = (
-    'Checked', 'Alignment', 'State', 'AllowGrayed');
+const Properties: array[0..2] of PChar = (
+    'Checked', 'State', 'AllowGrayed');
 var b: boolean;
 begin
   case StringIndex(PropName, Properties) of
@@ -723,20 +734,18 @@ begin
           if fState<>cbGrayed then
             fState := TCheckBoxState(b);
         end;
-    1 : Reader.IdentProperty(fAlignment, TypeInfo(TAlignment));
-    2 : Reader.IdentProperty(fState, TypeInfo(TCheckBoxState));
-    3 : fAllowGrayed := Reader.BooleanProperty;
+    1 : Reader.IdentProperty(fState, TypeInfo(TCheckBoxState));
+    2 : fAllowGrayed := Reader.BooleanProperty;
     else inherited;
   end;
 end;
 
 // Used internally to force check/uncheck (Null Msg)
-procedure TCheckBox.ComponentNotif(var Msg: TMessage);
+function TCheckBox.ComponentNotif(var Msg: TMessage): boolean;
 begin
+  result := inherited ComponentNotif(Msg);
   if Msg.Msg=0 then
-    Checked := (not Checked)
-  else
-    inherited;
+    Checked := (not Checked);
 end;
 
 procedure TCheckBox.AdjustTextSize(var Size: TSize);
@@ -776,7 +785,7 @@ end;
 
 { TRadioButton }
 
-constructor TRadioButton.Create(AOwner:TComponent);
+constructor TRadioButton.Create(AOwner: TComponent);
 begin
   inherited;
   ATType := ATTRadioButton;
@@ -784,9 +793,9 @@ begin
   AutoSize := true;
 end;
 
-procedure TRadioButton.CreateParams(var Params : TCreateParams);
+procedure TRadioButton.CreateParams(var Params: TCreateParams);
 begin
-  fCreateFlags := BS_RADIOBUTTON or CBAlignStyle[fAlignment];
+  fCreateFlags := BS_RADIOBUTTON or CBAlignStyle[Alignment];
   inherited;
 end;
 
@@ -807,7 +816,7 @@ end;
 
 { TGroupBox }
 
-constructor TGroupBox.Create(AOwner:TComponent);
+constructor TGroupBox.Create(AOwner: TComponent);
 begin
   inherited;
   ATType := ATTGroupBox;
@@ -821,13 +830,12 @@ begin
   CreateAllHandles;
 end;
 
-procedure TGroupBox.CreateParams(var Params : TCreateParams);
+procedure TGroupBox.CreateParams(var Params: TCreateParams);
 begin
   inherited;
   with Params do
     begin
       Style := Style or BS_GROUPBOX;
-      ExStyle := WS_EX_CONTROLPARENT;
       WinClassName := BUTTON_CTRLCLASS;
     end;
 end;
@@ -842,7 +850,7 @@ begin
   Inc(Size.cx, 19); Inc(Size.cy, 4);
 end;
 
-{$ifdef  LLCL_OPT_STDLABEL}
+{$ifdef LLCL_OPT_STDLABEL}
 { TLabel }
 
 constructor TLabel.Create(AOwner: TComponent);
@@ -854,11 +862,10 @@ begin
 end;
 
 procedure TLabel.ReadProperty(const PropName: string; Reader: TReader);
-const Properties: array[0..1] of PChar = ('Alignment', 'WordWrap');
+const Properties: array[0..0] of PChar = ('WordWrap');
 begin
   case StringIndex(PropName, Properties) of
-    0 : Reader.IdentProperty(fAlignment, TypeInfo(TAlignment));
-    1 : fWordWrap := Reader.BooleanProperty;
+    0 : fWordWrap := Reader.BooleanProperty;
     else inherited;
   end;
 end;
@@ -875,7 +882,7 @@ procedure TLabel.PaintText(AddFlags: cardinal; var R: TRect);
 const LAlignStyle: array[TAlignment] of cardinal =(DT_LEFT , DT_RIGHT, DT_CENTER);
 var fFlags: cardinal;
 begin
-  fFlags := DT_EXPANDTABS or LAlignStyle[fAlignment];
+  fFlags := DT_EXPANDTABS or LAlignStyle[Alignment];
   if fWordWrap then
     fFlags := fFlags or DT_WORDBREAK;
   with TPCanvas(Canvas) do begin
@@ -954,9 +961,10 @@ procedure TBoxStrings.Clear;
 var s: string;
 begin
   fStrings.Clear;
-  s := ''; // (to avoid compilation warning)
   if fbox.ATType=ATTComboBox then
-    s := LLCLS_SendMessageGetText(fBox.Handle);
+    s := LLCLS_SendMessageGetText(fBox.Handle)
+  else
+    s := ''; // (to avoid compilation warning)
   LLCL_SendMessage(fBox.Handle, cardinal(fBox.fResetMsg), 0, 0);  // LLCLS_SendMessageSetText not used here
   if fbox.ATType=ATTComboBox then
     LLCLS_SendMessageSetText(fBox.Handle, WM_SETTEXT, s);
@@ -1006,7 +1014,7 @@ begin
   SetItemIndex(fItemIndex);
 end;
 
-procedure TCustomBox.CreateParams(var Params : TCreateParams);
+procedure TCustomBox.CreateParams(var Params: TCreateParams);
 begin
   inherited;
   with Params do
@@ -1174,7 +1182,7 @@ begin
     end;
 end;
 
-procedure TComboBox.CreateParams(var Params : TCreateParams);
+procedure TComboBox.CreateParams(var Params: TCreateParams);
 //TComboBoxStyle = (csDropDown, csSimple, csDropDownList, csOwnerDrawFixed, csOwnerDrawVariable);
 const ComboBoxStyleFlag: array[TComboBoxStyle] of cardinal =
   (CBS_DROPDOWN, CBS_SIMPLE, CBS_DROPDOWNLIST, CBS_OWNERDRAWFIXED, CBS_OWNERDRAWVARIABLE);
@@ -1229,8 +1237,12 @@ end;
 
 function TCombobox.ColorForSubCont(SubContMsg: integer; SubConthWnd: THandle): boolean;
 begin
+{$IFDEF FPC}
+  result := ((SubContMsg=WM_CTLCOLOREDIT) and (SubConthWnd=fhWndItem));   // Only edit box
+{$ELSE FPC}
   result := ((SubContMsg=WM_CTLCOLOREDIT) and (SubConthWnd=fhWndItem)) or
             ((SubContMsg=WM_CTLCOLORLISTBOX) and (SubConthWnd=fhWndList));
+{$ENDIF FPC}
 end;
 
 function TComboBox.GetText(): string;
@@ -1270,9 +1282,9 @@ begin
 end;
 
 // WM_COMMAND message coming from form
-procedure TComboBox.ComponentNotif(var Msg: TMessage);
+function TComboBox.ComponentNotif(var Msg: TMessage): boolean;
 begin
-  inherited;
+  result := inherited ComponentNotif(Msg);
   case TWMCommand(Msg).NotifyCode of
   CBN_SELCHANGE, CBN_EDITCHANGE:
     begin
@@ -1304,7 +1316,7 @@ begin
   ATType := ATTListBox;
 end;
 
-procedure TListBox.CreateParams(var Params : TCreateParams);
+procedure TListBox.CreateParams(var Params: TCreateParams);
 begin
   fCreateFlags := WS_VSCROLL or LBS_HASSTRINGS or LBS_NOINTEGRALHEIGHT or LBS_NOTIFY;
   fAddLineMsg := LB_ADDSTRING;
@@ -1318,9 +1330,9 @@ begin
 end;
 
 // WM_COMMAND message coming from form
-procedure TListBox.ComponentNotif(var Msg: TMessage);
+function TListBox.ComponentNotif(var Msg: TMessage): boolean;
 begin
-  inherited;
+  result := inherited ComponentNotif(Msg);
   case TWMCommand(Msg).NotifyCode of
   LBN_SELCHANGE:
     fItemIndex := LLCL_SendMessage(Handle, cardinal(fGetIndexMsg), 0, 0);
@@ -1329,7 +1341,7 @@ end;
 
 { TStaticText }
 
-constructor TStaticText.Create(AOwner:TComponent);
+constructor TStaticText.Create(AOwner: TComponent);
 begin
   inherited;
   ATType := ATTStaticText;
@@ -1340,16 +1352,16 @@ begin
 {$ENDIF}
 end;
 
-procedure TStaticText.CreateParams(var Params : TCreateParams);
+procedure TStaticText.CreateParams(var Params: TCreateParams);
 var stStyle: cardinal;
 begin
   inherited;
   case fBorderStyle of
-    sbsSingle : stStyle := WS_BORDER;
-    sbsSunKen : stStyle := SS_SUNKEN;
-    else        stStyle := 0;
+    sbsSingle: stStyle := WS_BORDER;
+    sbsSunKen: stStyle := SS_SUNKEN;
+    else       stStyle := 0;
   end;
-  case fAlignment of
+  case Alignment of
     taRightJustify: stStyle := stStyle or SS_RIGHT;
     taCenter:       stStyle := stStyle or SS_CENTER;
   end;
@@ -1361,12 +1373,11 @@ begin
 end;
 
 procedure TStaticText.ReadProperty(const PropName: string; Reader: TReader);
-const Properties: array[0..1] of PChar = (
-    'BorderStyle', 'Alignment');
+const Properties: array[0..0] of PChar = (
+    'BorderStyle');
 begin
   case StringIndex(PropName, Properties) of
     0 : Reader.IdentProperty(fBorderStyle, TypeInfo(TStaticBorderStyle));
-    1 : Reader.IdentProperty(fAlignment, TypeInfo(TAlignment));
     else inherited;
   end;
 end;

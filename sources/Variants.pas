@@ -12,15 +12,16 @@ unit Variants;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
    Version 1.00:
 
    Notes:

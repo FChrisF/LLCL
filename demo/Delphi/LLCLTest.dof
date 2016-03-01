@@ -95,7 +95,7 @@ UnitOutputDir=
 PackageDLLOutputDir=
 PackageDCPOutputDir=
 SearchPath=..\..\sources
-Packages=vcl;rtl;vclx;VclSmp;vclshlctrls;IndyCore70;IndySystem70;IndyProtocols70
+Packages=vcl;rtl;vclx;VclSmp;vclshlctrls
 Conditionals=
 DebugSourceDirs=
 UsePackages=0
@@ -130,13 +130,9 @@ OriginalFilename=
 ProductName=
 ProductVersion=1.0.0.0
 Comments=
-[Excluded Packages]
-C:\WINDOWS\system32\IndyCore70.bpl=Indy 10 Core
-C:\WINDOWS\system32\IndySystem70.bpl=Indy 10 System
 [HistoryLists\hlUnitAliases]
 Count=1
 Item0=WinTypes=Windows;WinProcs=Windows;DbiTypes=BDE;DbiProcs=BDE;DbiErrs=BDE;
 [HistoryLists\hlSearchPath]
-Count=2
+Count=1
 Item0=..\..\sources
-Item1=.\LLCLUnits

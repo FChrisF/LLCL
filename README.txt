@@ -11,7 +11,7 @@ while being compatible with - a part of - the LCL/VCL. It may
 concern for instance: small installation or configuration
 programs, simple tools, test programs, ... Typically, the size
 is about 1/10th with Free Pascal/Lazarus and 1/5th with Delphi
-for simple small programs.
+for small and simple programs.
 
   It's not a specific graphical library, or another widgetset.
 It's an emulation of a small subset of the standard LCL/VCL,
@@ -22,10 +22,10 @@ can be used.
 
   There is nothing to install in order to use it, nor any
 configuration to modify: just indicate a valid path for the
-LLCL files into your project options, and that's it !
+Light LCL files into your project options, and that's it !
 
   It's available only for Windows (32 and 64 bits). It has
-been tested with FPC 2.6.x/3.x + Lazarus 1.2.x/1.4.x/1.5 and
+been tested with FPC 2.6.x/3.x + Lazarus 1.4.x/1.6 and
 Delphi 7.
 
 
@@ -41,6 +41,29 @@ people (including A. Bouchez).
 the Light VCL (LVCL), with some additions and modifications.
 
 LLCL ChangeLog:
+
+* Version 1.01:
+  Main changes and additions:
+  - TStringGrid control added (Grids.pas),
+  - TIniFile class added (IniFiles.pas),
+  - TClipboard class added for text data (ClipBrd.pas),
+  - PNG images support (not enabled by default),
+  - transparent bitmaps support (not enabled by default),
+  - forms double buffering support (not enabled by default),
+  - TSelectDirectoryDialog control added (Dialog.pas) for
+    FPC/Lazarus (not enabled by default) and SelectDirectory
+    function (Dialog.pas or FileCtrl.pas),
+  - ANSI LLCL option (i.e. no UTF8 at all) added for
+    FPC/Lazarus (see in LLCLFPCInc.inc),
+  - design time only properties for controls are now
+    accessible for dynamic creation purposes. Run time
+    modifications are still not supported for them, but they
+    can now be set at run time before the corresponding
+    control is dynamically created,
+  - a few bug fixes and some minor additions/modifications.
+  Note: controls and functionalities not enabled by default
+  can be activated by defining the corresponding option(s) in
+  the option files LLCLOptions.inc.
 
 * Version 1.00:
   - Initial public release.
@@ -58,15 +81,15 @@ file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
   See the "LICENSE.txt" file for a copy of the MPL.
 
-Copyright (c) 2015 ChrisF
+Copyright (c) 2015-2016 ChrisF
 
 Based upon the Very LIGHT VCL (LVCL):
 Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
 Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
   Note: as the LVCL has been released under the MPL version
-1.1, this Source Code Form is “Incompatible With Secondary
-Licenses”, as defined by the Mozilla Public License, v. 2.0.
+1.1, this Source Code Form is "Incompatible With Secondary
+Licenses", as defined by the Mozilla Public License, v. 2.0.
 
 More simply (i.e. my own interpretation):
   In simple terms, it means that you can use it in a common
@@ -86,13 +109,15 @@ modified LGPL license used for the standard LCL of Lazarus.
 
   The files/units present in the Ligth LCL replace the main
 standard files/units used inside the LCL/VCL: Classes,
-ComCtrls, Controls, Dialogs, ExtCtrls, Forms, Graphics, Menus,
-StdCtrls, SysUtils and Variants.
+ClipBrd, ComCtrls, Controls, Dialogs, ExtCtrls, FileCtrl,
+Forms, Graphics, Grids, IniFiles, Menus, StdCtrls, SysUtils
+and Variants.
 
   Plus an additional unit for the VCL: XPMan.
 
   And a few other ones for the LCL: FileUtil, Interfaces,
-LazFileUtils, LazUTF8, LazUTF8Classes, LCLType and LMessages.
+LazFileUtils, LazUTF8, LazUTF8Classes, LCLIntF, LCLType and
+LMessages.
 
   Some of these units are just 'dummy' (i.e. empty) units,
 provided for compatibility reasons.
@@ -105,18 +130,20 @@ provided for compatibility reasons.
 - LLCLFPCInc.inc: include file containing compilation
   directives (used only for FPC/Lazarus),
 - LLCLOptions.inc: include file with various possible
-  compilation options.
+  compilation options for the LLCL,
+- LLCLPng.pas and LLCLZlib.pas: internal unit files for the
+  PNG support and the ZLib interface.
 
 
 4. HOW TO USE THE LIGHT LCL
 ---------------------------
 
   Put all the LLCL files into a new directory (DO NOT
-overwrite the standard LCL/VCL files - for instance, create a
-subdirectory in your project called LLCLUnits), and just add
-the corresponding path for the LLCL files into your project
-options, in order they are used instead of the standard
-LCL/VCL ones:
+OVERWRITE the standard LCL/VCL files - for instance, create a
+subdirectory in your project directory and call it LLCLUnits),
+and just add the corresponding path for the LLCL files into
+your project options, in order they are used instead of the
+standard LCL/VCL ones:
 
 - for FPC/Lazarus (-Fu compiler option):
   Project->Project Options->Compiler options->Paths->
@@ -137,19 +164,19 @@ to apply to your projects:
            and Linking->Optimization levels
 - use a smaller icon than the default one for your program.
   The by-default icon for a project created with FPC/Lazarus
-  (i.e. yourproject.ico) includes several versions of icons,
+  (i.e. [yourproject].ico) includes several versions of icons,
   with various sizes and various numbers of colors: but, the
   final icon file size is about 134 Kb. Use instead only one
   small icon: for instance one with 32x32x256 size*colors
-  (3 Kb), or 32x32x16 size*colors (only 1 Kb).
+  (3 Kb), or with 32x32x16 size*colors (only 1 Kb).
 
   And both for FPC/Lazarus and Delphi:
 
 - remove the LLCL units not needed into your code (in the
   'uses' clauses). Especially, remove the Dialogs unit (added
-  automatically by default in a new project), if this unit is
-  not needed. Units concerned by this remark: ComCtrls,
-  Dialogs and ExtCtrls.
+  automatically by default in a new project) if this unit is
+  not needed. Units especially concerned by this remark:
+  ComCtrls, Dialogs and ExtCtrls.
 
 
 5. LINKS
@@ -179,22 +206,22 @@ Delphi: http://www.embarcadero.com
   includes packages using the LCL/VCL.
 
 . Some other standard (i.e. FPC/Lazarus or Delphi) units may
-  or may not be used with the LLCL. Particularly:
+  or may not be used with the LLCL. More particularly:
   - can be used: SysUtils (with an extra size penalization),
   Variants (only with the standard SysUtils unit), Types (not
   included into the LLCL files),
   - cannot be used: Classes (at least not without some
-  modifications).
+  modifications - see the "GetWebPage" sample).
   To use one standard unit instead of its corresponding LLCL
   unit in your projects, rename or delete it into the LLCL
   directory. See also the next paragraph in this case.
 
 . It's possible to switch back and forth between the LLCL and
-  the LCL/VCL for a given project. En each case, a full build
+  the LCL/VCL for a given project. In each case, a full build
   ("Build" Shift+F9) is preferable. However, when switching
   from the LLCL to the VCL/LCL, it's not sufficient for
-  FPC/Lazarus if the source files of the LLCL have been used
-  (because the binary files of the LLCL are still present).
+  FPC/Lazarus if the source files of the LLCL have been used:
+  because the binary files of the LLCL are then still present.
   Here are the steps to use in both cases:
   * From the LCL/VCL to the LLCL:
     1/ add the path for the LLCL files into the project
@@ -203,7 +230,7 @@ Delphi: http://www.embarcadero.com
   * From the LLCL to the LCL/VCL:
     1/ remove the path for the LLCL files into the project
        options, or rename/delete the corresponding LLCL file
-       (for using a standard LCL/VCL file like SysUtils for
+       (for using a standard LCL/VCL file like SysUtils, for
        instance),
     2/ if the source files of the LLCL have been used, delete
        the corresponding binary file(s) in the binary
@@ -230,8 +257,12 @@ Delphi: http://www.embarcadero.com
 . Some compilation directives for the LLCL are available in
   the LLCLOptions.inc file. Their main aims are to permit to
   reduce a little bit more the size of the final executable
-  file. See in the include file itself for the option list,
-  and for pieces of information for each option.
+  file, or to adjust more precisely some functionalities
+  supported by the LLCL. See in the include file itself for
+  the option list, and for pieces of information for each of
+  these options. It's also possible to use global defines for
+  these options in the project options (see the "Visual"
+  sample for this later case).
 
 . Unknown properties (i.e. properties not supported by the
   LLCL) present in the lfm/dfm files are just ignored; as for
@@ -241,12 +272,12 @@ Delphi: http://www.embarcadero.com
 
 . Though not recommended, it's possible to make conditional
   compilation for programs using the LLCL by testing the
-  "Declared(LLCLVersion)" assertion (i.e. {$if ...}). Forms
-  unit must be used in this case.
+  "Declared(LLCLVersion)" assertion (i.e. {$if ...}). The
+  Forms unit must be used in this case.
 
-. Controls can be created at runtime, but with some
-  limitations: especially concerning properties that can only
-  be set at design time (see 7.3).
+. Controls can be created at run time, but with some
+  limitations. The main exception is menus (TMainMenu and
+  TPopupMenu), which can't be created at run time.
 
 . Though they are not supposed to be seen by the final user,
   it's possible to use an external include file for the LLCL
@@ -261,7 +292,7 @@ Delphi: http://www.embarcadero.com
   possible to use an experimental UTF16 version of the LLCL
   (i.e. "Unicode" version of Free Pascal). Select one of the
   UTF16 modes in the LLCLFPCInc include file ("unicodestrings"
-  or "delphiunicode"), and select it also for your own units.
+  or "delphiunicode"), and PUT IT ALSO in your own units.
   Notes:
   - some of the SysUtils functions are currently absent in the
     UTF16 version of the LLCL,
@@ -269,7 +300,29 @@ Delphi: http://www.embarcadero.com
     the "Unicode" version of Free Pascal. As a consequence,
     using the standard SysUtils unit in the LLCL will display
     several implicit conversions and relative warnings during
-    the compilation.
+    the compilation,
+  - only the Unicode Windows APIs are then used (though it's
+    still possible to use the LLCL_OPT_UNICODE_API_XXXX
+    options to modify this),
+  - the "-FcUTF8" option must be then used for the whole
+    project, or the "{$codepage UTF8}" directive must be added
+    to all your program units. If the "delphiunicode" mode is
+    choosen, the "{$codepage UTF8}" directive in all your
+    units is then mandatory (i.e. the "-FcUTF8" option is not
+    sufficient).
+
+. For FPC/Lazarus, it's possible to use a "pure" ANSI version
+  of the LLCL (note: it is not really the same thing as the
+  "DisableUTF8RTL" option of the standard LCL version 1.6):
+  see the LLCL_FPC_ANSI_ONLY option in LLCLFPCInc.inc. In this
+  later case, you must also save your own program units in the
+  corresponding ANSI encoding type, and not use the by-default
+  UTF8 encoding type. With this mode, only the ANSI Windows
+  APIs are then used (though it's still possible to use the
+  LLCL_OPT_UNICODE_API_XXXX options to modify this). For
+  compatibility reasons, UTF8 functions (especially UTF8ToSys
+  and SysToUTF8) are not making any conversions when used in
+  this mode (mainly concerns FPC 2.6.x).
 
 
 7. EMULATION MINI DOCUMENTATION
@@ -281,14 +334,16 @@ Delphi: http://www.embarcadero.com
 Standard: TLabel, TButton, TEdit, TMemo, TCheckBox,
           TRadioButton, TGroupBox, TComboBox, TListBox,
           TStaticText, TMainMenu, TPopupMenu
-Additional: TImage,  TTrayIcon
+Additional: TImage,  TTrayIcon, TStringGrid
 Common: TProgressBar, TTrackBar, TXPManifest (Delphi)
-Dialogs: TOpenDialog, TSaveDialog
+Dialogs: TOpenDialog, TSaveDialog, TSelectDirectoryDialog
+         (FPC only, and not enabled by default)
 System: TTimer
 
-Other classes: TCustomForm, TForm
+Other classes: TCustomForm, TForm, TClipboard, TIniFile
 
-General variables: Application (TApplication), Mouse(TMouse)
+General variables: Application (TApplication), Mouse(TMouse),
+    Clipboard(TClipboard)
 
 
 7.2 BASE CLASSES TREE
@@ -314,11 +369,15 @@ TNonVisualControl*               TVisualControl*
 
 7.3 CLASSES DETAILS
 --------------------
-Standard public methods, properties and events available
-[rwd] options:
- r=read, w=write, d=design time ([d] means design time only)
+  Standard public methods, properties and events available
+[rwd] options: r=read, w=write, d=design time.
 
-Preliminary note: generally speaking, they are usually
+  "Design time" meaning: can bet set only inside the IDE
+(i.e. in the dfm/lfm files), or in code for controls created
+dynamically before their "real" creation (i.e. before affected
+to their TWinControl parent).
+
+  Preliminary note: generally speaking, they are usually
 simplified and so, are supposed to work properly for the
 common case(s) only.
 
@@ -433,6 +492,7 @@ Note: TCustomBox is specific to the LLCL
 TGraphicData (Graphics - TPersistent)
   destructor  Destroy; override;
   property  Data: array of byte; [d]
+  property  OnChange: TNotifyEvent; [rw]
 Note: TGraphicData is specific to the LLCL
 
 TBitmap (Graphics - TGraphicData)
@@ -447,6 +507,7 @@ TPicture (Graphics - TPersistent)
   procedure LoadFromResourceName(Instance: THandle; const ResName: string); *
   procedure LoadFromFile(const FileName: string);
   property  Bitmap: TBitmap; [rw]
+  property  OnChange: TNotifyEvent; [rw]
 *: only with Free Pascal/Lazarus
 
 TIcon (Graphics - TGraphicData)
@@ -506,6 +567,7 @@ TVisualControl (Controls - TControl)
   procedure SetBounds(ALeft, ATop, AWidth, AHeight: integer); virtual;
   procedure Show; virtual;
   procedure Update; virtual;
+  property  Alignment: [rd] *
   property  AutoSize; [rwd]
   property  Canvas: TCanvas; [r]
   property  Caption: string; [rwd]
@@ -519,6 +581,7 @@ TVisualControl (Controls - TControl)
   property  Visible: boolean; [rwd]
   property  Width: integer; [rwd]
   property  OnShow: TNotifyEvent; [rwd]
+*: Present in corresponding controls for standard LCL/VCL
 Note: TVisualControl is specific to the LLCL
 
 TGraphicControl (Controls - TVisualControl)
@@ -572,9 +635,7 @@ TCheckBox (SdtCtrls - TWinControl)
   constructor Create(AOwner: TComponent); override;
   property  AllowGrayed: boolean; [rwd]
   property  Checked: boolean; [rwd]
-  property  InitialAlignment: TAlignment; [rw] *
   property  State: TCheckBoxState; [rwd]
-*: LLCL specific
 
 TComboBox (SdtCtrls - TCustomBox)
   constructor Create(AOwner: TComponent); override;
@@ -587,14 +648,11 @@ TComboBox (SdtCtrls - TCustomBox)
 
 TEdit (StdCtrls - TWinControl)
   constructor Create(AOwner: TComponent); override;
-  property  Alignment: TAlignment; [d]
-  property  InitialAlignment: TAlignment; [rw] *
   property  PasswordChar: Char; [d]
   procedure SelectAll;
   property  ReadOnly: boolean; [rwd]
   property  Text: string; [rwd]
   property  OnChange: TNotifyEvent; [rwd]
-*: LLCL specific
 
 TGroupBox (SdtCtrls - TWinControl)
   constructor Create(AOwner: TComponent); override;
@@ -607,10 +665,9 @@ TImage (ExtCtrl - TGraphicControl)
 
 TLabel (StdCtrls - TGraphicControl)
   constructor Create(AOwner: TComponent); override;
-  property  Alignment: TAlignment; [d]
   property  WordWrap: boolean; [d]
 Note: TLabel is a TStaticText subclass, if LLCL_OPT_STDLABEL
-is not defined
+      is not defined
 
 TListBox (SdtCtrls - TCustomBox)
   constructor Create(AOwner: TComponent); override;
@@ -637,7 +694,6 @@ TRadioButton (SdtCtrls - TCheckBox)
 
 TStaticText (SdtCtrls - TWinControl)
   constructor Create(AOwner: TComponent); override;
-  property  Alignment: TAlignment; [d]
   property  BorderStyle: boolean; [d]
 
 TOpenDialog (Dialogs - TNonVisualControl)
@@ -666,6 +722,50 @@ TProgressBar (ComCtrls - TWinControl)
 TSaveDialog (Dialogs - TOpenDialog)
   constructor Create(AOwner: TComponent); override;
 Note: available only if LLCL_OPT_USEDIALOG is not undefined
+
+TSelectDirectoryDialog (Dialogs - TOpenDialog)
+  constructor Create(AOwner: TComponent); override;
+  function Execute: boolean; override;
+Notes: - only with Free Pascal/Lazarus
+       - available only if LLCL_OPT_USESELECTDIRECTORYDIALOG
+         is defined
+
+TStringGrid (Grids - TWinControl)
+  constructor Create(AOwner: TComponent); override;
+  destructor  Destroy; override;
+  procedure SortColRow(IsColumn: boolean; Index: integer); *1
+  property  Cells[ACol, ARow: integer]: string; [rwd] *2
+  property  Col: integer; [rw]
+  property  ColCount: integer; [rwd]
+  property  Cols[Index: integer]: TStringList; [rw]
+  property  ColumnClickSorts: boolean; [rwd] *3
+  property  ColWidths[Index: integer]: integer; [rwd]
+  property  DefaultColWidth: integer; [rwd]
+  property  DefaultRowHeight: integer; [rwd] *4
+  property  FixedCols: integer; [rwd] *5
+  property  FixedRows: integer; [rwd] *6
+  property  OnCompareCells: TOnCompareCells; [rwd] *3
+  property  OnGetEditText: TGetEditEvent; [rwd]
+  property  OnHeaderClick: THdrEvent; [rwd] *3
+  property  OnSelectCell: TOnSelectCellEvent; [rwd]
+  property  OnSetEditText: TSetEditEvent; [rwd]
+  property  Options: TGridOptions; [rd]
+  property  Row: integer; [rw]
+  property  RowCount: integer; [rwd]
+  property  RowHeights[Index: integer]: integer; [rwd] *7
+  property  Rows[Index: integer]: TStringList; [rw]
+  property  Selection: TGridRect; [r]
+  property  SortColumn: integer; [r] *3
+  property  SortOrder: TSortOrder; [rw] *3
+*1: only for columns (i.e. IsColumn = True)
+*2: not possible at design time for Delphi
+*3: not present in the standard Delphi VCL
+*4: fixed row not concerned
+*5: ignored
+*6: only 1 fixed row is possible
+*7: ignored
+Note: some properties are available only if certain options
+      are defined (see LLCL_OPT_GRIDSOPT_XXXX)
 
 TTimer (ExtCtrl - TNonVisualControl)
   constructor Create(AOwner: TComponent); override;
@@ -702,8 +802,7 @@ TTrayIcon (ExtCtrl - TNonVisualControl)
   property  BalloonTitle: string; [rwd]
   property  OnDblClick: TNotifyEvent; [rwd]
 *: Available if LLCL_OPT_USEMENUS is not undefined
-**: Balloon notifications are possible only for Windows 2000
-or newer
+**: Balloon notifications are possible only for Windows 2000+
 ***: Only for Windows 2000 or XP
 
 TXPManifest (XPMan - TComponent)
@@ -771,8 +870,8 @@ TMouse (Controls - TObject)
   property  CursorPos: TPoint; [rw]
 
 
-7.3.5 SYSTEM CLASSES DETAILS
-----------------------------
+7.3.5 VARIOUS OTHER CLASSES DETAILS
+-----------------------------------
 
 TStream (Classes - TObject)
   procedure Clear;
@@ -822,7 +921,7 @@ TMemoryStream (Classes - TCustomMemoryStream)
 
 TReader (Classes - TObject)
 Note: the whole class is not standard, and therefore should
-not be used
+      not be used
 
 TThread (Classes - TObject)
   constructor Create(CreateSuspended: boolean);
@@ -841,8 +940,9 @@ TThread (Classes - TObject)
 Note: it's also possible to use (from the protected part)
   procedure Execute; virtual; abstract;
   property  Terminated: boolean; [r]
-*: Resume and Suspend are deprecated for Delphi 2010+ and FPC/Lazarus 2.4.4+
-**: only with FPC and Delphi 2010+ (use Start instead of Resume)
+*: Resume and Suspend are deprecated for Delphi 2010+ and
+   FPC/Lazarus 2.4.4+
+**: only with FPC and Delphi 2010+ (Start instead of Resume)
 
 TEvent (Classes - TObject)
   constructor Create(EventAttributes: PSecurityAttributes; ManualReset, InitialState: Boolean; const Name: string);
@@ -850,8 +950,34 @@ TEvent (Classes - TObject)
   procedure ResetEvent;
   procedure SetEvent;
   function  WaitFor(Timeout: LongWord): TWaitResult;
-  property  Handle: THandle ; [r] *
+  property  Handle: THandle; [r] *
 *: only with Delphi
+
+TClipboard (ClipBrd - TPersistent)
+  procedure Open;
+  procedure Close;
+  procedure Clear;
+  function  HasFormat(Format: cardinal): boolean;
+  function  GetAsHandle(Format: cardinal): THandle;
+  procedure SetAsHandle(Format: cardinal; Value: THandle);
+  property  AsText: string; [rw]
+
+TIniFile (IniFiles - TObject)
+  constructor Create(const AFileName: string);
+  procedure DeleteKey(const Section, Ident: string); virtual;
+  procedure EraseSection(const Section: string); virtual;
+  function  ReadBool(const Section, Ident: string; Default: boolean): boolean; virtual;
+  function  ReadDate(const Section, Ident: string; Default: TDateTime): TDateTime; virtual;
+  function  ReadInt64(const Section, Ident: string; Default: int64): int64; virtual;
+  function  ReadInteger(const Section, Ident: string; Default: integer): integer; virtual;
+  function  ReadString(const Section, Ident, Default: string): string; virtual;
+  procedure WriteBool(const Section, Ident: string; Value: boolean); virtual;
+  procedure WriteDate(const Section, Ident: string; Value: TDateTime); virtual;
+  procedure WriteInt64(const Section, Ident: string; Value: int64); virtual;
+  procedure WriteInteger(const Section, Ident: string; Value: integer); virtual;
+  procedure WriteString(const Section, Ident, Value: string); virtual;
+  property  FileName: string; [r]
+Note: string date/time formats are specific in LLCL SysUtils
 
 
 7.4 SPECIFIC NOTES
@@ -887,12 +1013,42 @@ Controls and main classes:
   not used).
 
 . TPicture:
-  Only BMP images are supported.
+  Only BMP and PNG (not enabled by default for PNG) images are
+  supported. To use PNG images, the LLCL_OPT_PNGSUPPORT option
+  must be defined, or eventually the more complete
+  LLCL_OPT_EXTENDGRAPHICAL option which enables also the
+  support of transparent bitmaps and of the double buffering
+  painting mode for forms. Some additional Zlib options (PNG
+  images support requires the Zlib decompression) are also
+  available. Neither TPicture nor TBitmap support any kind of
+  data saving.
 
 . TOpenDialog:
   The number of files which can be selected is limited in
   case of a multi selection: 100 files or more, depending of
   the whole file path sizes.
+
+. TStringGrid:
+  As the StringGrid control is based upon a Windows Listview
+  control in the LLCL, there are several differences with the
+  standard LCL/VCL one. Hereafter, the main differences:
+  - only one or zero fixed rows is possible. More than one
+    fixed rows gives only one fixed row,
+  - fixed columns are not possible: they are just ignored,
+  - a single cell or a group of cells can't be selected except
+    in the first column. Selecting a single row or a
+    group of rows is however possible (if the goRowSelect
+    option is set),
+  - only cells in the first column can be edited (not enabled
+    by default),
+  - rows can't be sorted, only columns,
+  A few options are available concerning this control: see
+  LLCL_OPT_GRIDSOPT_XXXX in LLCLOptions.inc.
+
+. TSelectDirectoryDialog:
+  This control (FPC/Lazarus only) is available only if the
+  general LLCL_OPT_USEDIALOG option is defined, and if the
+  specific LLCL_OPT_USESELECTDIRECTORYDIALOG option too.
 
 . TTrayIcon:
   WM_USER+125 message is used in the main Windows procedure
@@ -903,13 +1059,15 @@ System classes:
 . TThread:
   There is no Synchronize function. As a consequence, the
   OnTerminate event is executed inside the calling thread,
-  and not inside the main thread.
+  and not inside the main thread (contrarily to the standard
+  LCL/VCL).
 
 Others:
 
 . SysUtils:
-  DateTimeToStr, DateToStr and TimeToStr function are using
-  only a fixed output format: 'YYYY/MM/DD hh:mm:ss'.
+  The DateTimeToStr, DateToStr, TimeToStr, TryStrToDate and
+  TryStrToTime functions are using only a fixed format:
+  'YYYY/MM/DD hh:mm:ss'.
 
 
 7.5 KNOWN ISSUES
@@ -926,3 +1084,13 @@ Others:
   units: "range" (-Cr) and "Verify method calls (-CR). Your
   projects may however still used these options, but the used
   LLCL units must be compiled first without them.
+
+. Since Lazarus 1.6, the IDE is displaying some warnings (i.e.
+  "note") during the compilation step, when some unit names
+  are identical between the project files and the files used
+  by the package(s) for the project. This is especially the
+  case when the "LCL" package is used for a project (default
+  for a standard application), and the LLCL too. Currently,
+  there are no ways to avoid them. So, just ignore them; or
+  eventually (which is absolutely not recommended) remove the
+  "LCL" package dependency for the project.

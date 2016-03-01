@@ -12,15 +12,17 @@ unit Classes;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * TReader: ReadStringInts (and StringIntProperty), ReadIntArray added
    Version 1.00:
     * Rect, EStreamError moved from SysUtils to Classes
     * TList reviewed (List, Capacity, ...)
@@ -317,6 +319,7 @@ type
     function  BooleanProperty(): boolean;
     function  IntegerProperty(): integer;
     function  StringProperty(): string;
+    function  StringIntProperty(): string;
     function  ColorProperty(): integer;
     function  BinaryProperty(var Size: integer): pointer;
     procedure IdentProperty(var aValue; aTypeInfo: pointer);
@@ -329,10 +332,12 @@ type
     function  ReadUTF8String(): string;
     function  ReadWString(): string;
     procedure ReadPrefix(var Flags: TFilerFlags; var AChildPos: integer);
+    procedure AnyProperty;
     procedure ReadList;
     procedure ReadSet;
     procedure ReadStrings(Strings: TStrings);
-    procedure AnyProperty;
+    procedure ReadStringInts(Strings: TStrings);
+    procedure ReadIntArray(var IntArray: array of integer); // Read an array of integers
     property  Size: integer read fSize;
     property  Position: integer read fPosition write SetPosition;
   end;
@@ -514,6 +519,7 @@ const
 function GetTypeData(ptrTypeInfo: PTypeInfo) : PTypeData; forward;
 function GetEnumNameValue(ptrTypeInfo: PTypeInfo; const Name: string): integer; forward;
 function GetColorFromIdent(Ident: PChar): integer; forward;
+function ClassSameText(const S1, S2: string): boolean; forward;
 
 {$ifdef MSWindows}
 var
@@ -526,8 +532,7 @@ function CreateComponent(const AClassName: shortstring; AOwner: TComponent): TCo
   {$define Def_FPC_StdSys}
 {$ifend}
 {$ifdef Def_FPC_StdSys}
-function  Class_CompareText(const S1, S2: string): integer; forward;
-function  Class_SameText(const S1, S2: string): boolean; forward;
+function  Class_IntToStr(Value: integer): string; forward;
 {$endif}
 
 
@@ -550,9 +555,9 @@ begin
   case ptrTypeInfo^.Kind of
   tkBool:
     begin
-      if {$ifdef Def_FPC_StdSys}Class_CompareText{$else}CompareText{$endif}(BooleanIdents[false],Name)=0 then
+      if ClassSameText(BooleanIdents[false], Name) then
         result := 0
-      else if {$ifdef Def_FPC_StdSys}Class_CompareText{$else}CompareText{$endif}(BooleanIdents[true],Name)=0 then
+      else if ClassSameText(BooleanIdents[true], Name) then
         result := 1;
     end;
   tkEnumeration:
@@ -562,7 +567,7 @@ begin
       PS := @PT^.NameList;
       while PByte(PS)^<>0 do
         begin
-          if {$ifdef Def_FPC_StdSys}Class_CompareText{$else}CompareText{$endif}(string(PS^), Name) = 0 then
+          if ClassSameText(string(PS^), Name) then
             begin
               result := Count+PT^.MinValue;
               break;
@@ -690,40 +695,17 @@ begin
   result := clNone;
 end;
 
-{$ifdef Def_FPC_StdSys}
-function  Class_CompareText(const S1, S2: string): integer;
-var i, count, count1, count2: integer;
-var ch1, ch2: integer;
+function ClassSameText(const S1, S2: string): boolean;
 begin
-  count1 := length(S1);
-  count2 := length(S2);
-  if count1 > count2 then
-    count := count2
-  else
-    count := count1;
-  for i:=1 to count do
-    begin
-      ch1 := ord(S1[i]);
-      ch2 := ord(S2[i]);
-      if ch1 <> ch2 then
-        begin
-          if ch1 in [ord('a')..ord('z')] then Dec(ch1, 32);
-          if ch2 in [ord('a')..ord('z')] then Dec(ch2, 32);
-          if ch1 <> ch2 then
-            begin
-              result := ch1 - ch2;
-              exit;
-            end;
-        end;
-    end;
-  result := count1 - count2;
+  result := (LLCLS_CompareString(LOCALE_USER_DEFAULT, NORM_IGNORECASE, S1, S2)=CSTR_EQUAL);
 end;
 
-function  Class_SameText(const S1, S2: string): boolean;
+{$ifdef Def_FPC_StdSys}
+function  Class_IntToStr(Value: integer): string;
 begin
- result := (Class_CompareText(S1, S2)=0);
+  Str(Value, result);
 end;
-{$endif}
+{$endif Def_FPC_StdSys}
 
 { TList }
 
@@ -964,7 +946,7 @@ begin
     if fCaseSensitive then
       begin if fListStr[i]=s then begin result := i; exit; end; end
     else
-      begin if {$ifdef Def_FPC_StdSys}Class_SameText{$else}SameText{$endif}(fListStr[i], s) then begin result := i; exit; end; end;
+      begin if ClassSameText(fListStr[i], s) then begin result := i; exit; end; end;
 end;
 
 function TStringList.IndexOfObject(item: pointer): integer;
@@ -989,7 +971,7 @@ begin
     begin
       Tmp := ObjName + Separator;
       for i := 0 to fCount-1 do
-        if {$ifdef Def_FPC_StdSys}Class_CompareText{$else}CompareText{$endif}(Copy(fListStr[i], 1, length(Tmp)), Tmp) = 0 then
+        if ClassSameText(Copy(fListStr[i], 1, length(Tmp)), Tmp) then
           begin
             result := i;
             exit;
@@ -1182,7 +1164,7 @@ begin
       Dec(Count, N);
     end;
   finally
-    FreeMem(Buffer, BufSize);
+    FreeMem(Buffer);
   end;
 end;
 
@@ -1441,6 +1423,23 @@ begin
   end;
 end;
 
+function TReader.StringIntProperty(): string;
+var ValueType: TValueType;
+begin
+  result := '';
+  ValueType := ReadValueType();
+  case ValueType of
+    vaIdent,
+    vaString:     result := ReadString();
+    vaUTF8String: result := ReadUTF8String();
+    vaWString:    result := ReadWString();
+    vaInt8  : result := {$ifdef Def_FPC_StdSys}Class_IntToStr{$else}IntToStr{$endif}(ShortInt(ReadByte()));
+    vaInt16 : result := {$ifdef Def_FPC_StdSys}Class_IntToStr{$else}IntToStr{$endif}(ReadWord());
+    vaInt32 : result := {$ifdef Def_FPC_StdSys}Class_IntToStr{$else}IntToStr{$endif}(ReadInteger());
+    else raise EClassesError.CreateFmt(LLCL_STR_CLAS_STRING, [integer(ValueType)]);
+  end;
+end;
+
 function TReader.ColorProperty(): integer;
 var ValueType: TValueType;
 begin
@@ -1631,6 +1630,35 @@ begin
   else Error(LLCL_STR_CLAS_LIST);
 end;
 
+// Read strings and integers (hack: integers are stored as strings)
+procedure TReader.ReadStringInts(Strings: TStrings);
+var ValueType: TValueType;
+    s: string;
+begin
+  ValueType := ReadValueType();
+  if ValueType=vaList then
+    repeat
+      s := StringIntProperty();
+      Strings.Add(s);
+    until EndOfList()
+  else Error(LLCL_STR_CLAS_LIST);
+end;
+
+// Read array of integers (array must wide enough)
+procedure TReader.ReadIntArray(var IntArray: array of integer);
+var ValueType: TValueType;
+    i: integer;
+begin
+  i := 0;
+  ValueType := ReadValueType();
+  if ValueType=vaList then
+    repeat
+      IntArray[i ] := IntegerProperty();
+      Inc(i);
+    until EndOfList()
+  else Error(LLCL_STR_CLAS_LIST);
+end;
+
 { TPersistent }
 
 function TPersistent.SubProperty(const SubPropName: string): TPersistent;
@@ -1659,8 +1687,8 @@ begin
 {$ifdef debug}
       ValueType := ReadValueType();
       case ValueType of
-        vaInt8   : Value := IntToStr(ReadByte());
-        vaInt16  : Value := IntToStr(ReadWord());
+        vaInt8   : Value := {$ifdef Def_FPC_StdSys}Class_IntToStr{$else}IntToStr{$endif}(ReadByte());
+        vaInt16  : Value := {$ifdef Def_FPC_StdSys}Class_IntToStr{$else}IntToStr{$endif}(ReadWord());
         vaIdent  : Value := '"'+ReadString()+'"';
         vaString : Value := ReadString();
         vaUTF8String: Value := ReadUTF8String();
@@ -1668,12 +1696,12 @@ begin
         vaFalse  : Value := '"FALSE"';
         vaTrue   : Value := '"TRUE"';
         vaBinary : begin
-                    i := ReadInteger(); Value := '('+IntToStr(i)+LLCL_STR_CLAS_BYTES;
+                    i := ReadInteger(); Value := '('+{$ifdef Def_FPC_StdSys}Class_IntToStr{$else}IntToStr{$endif}(i)+LLCL_STR_CLAS_BYTES;
                     Inc(fPointer,i); Inc(fPosition,i);
                    end;
         vaList: ReadList;
         vaSet:  ReadSet;
-        else OutputDebugString(pointer(LLCL_STR_CLAS_BADVALUETYPE+IntToStr(ord(ValueType))));
+        else OutputDebugString(pointer(LLCL_STR_CLAS_BADVALUETYPE+{$ifdef Def_FPC_StdSys}Class_IntToStr{$else}IntToStr{$endif}(ord(ValueType))));
       end;
       Oem := LLCLS_StringToOem(Value);
       writeln(self.ClassName+' '+TComponent(self).Name+'.'+PropName+'='+Oem);
@@ -1874,7 +1902,7 @@ begin
   result := nil;
   if fComponents<>nil then
     for i := 0 to fComponents.Count-1 do
-      if {$ifdef Def_FPC_StdSys}Class_SameText{$else}SameText{$endif}(TComponent(fComponents[i]).Name, CompName) then
+      if ClassSameText(TComponent(fComponents[i]).Name, CompName) then
         begin
           result := TComponent(fComponents[i]);
           break;
@@ -1906,8 +1934,7 @@ end;
 
 destructor TMemoryStream.Destroy;
 begin
-  if Memory<>nil then
-    Freemem(Memory);
+  LLCLS_FreeMemAndNil(fMemory);
   inherited;
 end;
 

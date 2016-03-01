@@ -14,7 +14,7 @@ object Form1: TForm1
   OnKeyUp = FormKeyUp
   OnMouseDown = FormMouseDown
   OnMouseUp = FormMouseUp
-  LCLVersion = '1.4.2.0'
+  LCLVersion = '1.4.4.0'
   object GroupBox1: TGroupBox
     Left = 8
     Height = 65

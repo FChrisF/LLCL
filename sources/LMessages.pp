@@ -12,15 +12,17 @@ unit LMessages;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * TWMMove, TWMNotify, TWMSysCommand added
    Version 1.00:
     * File creation.
 
@@ -179,6 +181,20 @@ type
     TWMRButtonDblClk      = TWMMouse;
     TWMMouseMove          = TWMMouse;
 
+  TWMMove = record
+    Msg: cardinal;
+    MsgFiller: TDWordFiller;
+    Unused: WPARAM;
+    case integer of
+    0: (
+       XPos: smallint;
+       YPos: smallint; );
+    1: (
+       Pos: TSmallPoint;
+       LParamFiller: TDWordFiller;
+       Result: LRESULT; );
+  end;
+
   TWMNCHitTest = record
     Msg: cardinal;
     MsgFiller: TDWordFiller;
@@ -192,6 +208,15 @@ type
        LParamFiller: TDWordFiller;
        Result: LRESULT; );
   end;
+
+  TWMNotify = record
+    Msg: cardinal;
+    MsgFiller: TDWordFiller;
+		IDCtrl: longint;
+    WParamFiller: TDWordFiller;
+		NMHdr: PNMHdr;
+    Result: LRESULT;
+	end;
 
   TWMPaint = record
     Msg: cardinal;
@@ -230,6 +255,17 @@ type
     Height: word;
     LParamFiller: TDWordFiller;
     Result: LRESULT;
+  end;
+
+  TWMSysCommand = record
+    Msg: cardinal;
+    MsgFiller: TDWordFiller;
+    case CmdType: WPARAM of
+      SC_HOTKEY: 	(ActivateWindow: HWND);
+      SC_KEYMENU: (Key: word);
+      SC_CLOSE, SC_HSCROLL, SC_MAXIMIZE, SC_MINIMIZE, SC_MOUSEMENU, SC_MOVE,
+			SC_NEXTWINDOW, SC_PREVWINDOW, SC_RESTORE, SC_SCREENSAVE, SC_SIZE, SC_TASKLIST, SC_VSCROLL:
+									(XPos: smallint; YPos: smallint; LParamFiller: TDWordFiller; Result: LRESULT; );
   end;
 
   TWMTimer = record

@@ -12,15 +12,20 @@ unit Graphics;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * TBitmap: PNG files support added (not enabled by default - see LLCL_OPT_PNGSUPPORT/LLCL_OPT_PNGSIMPLIFIED in LLCLOptions.inc)
+    * TBitmap: transparent bitmap support added (not enabled by default - see LLCL_OPT_IMGTRANSPARENT in LLCLOptions.inc)
+    * TGraphicData: ClearData added
+    * TGraphicData, TPicture: OnChange added (when bitmap data are changed)
    Version 1.00:
     * TIcon (minimal) added  - Intermediate TGraphicData class created
     * TPicture: Stretch and LoadFromFile added (only for .BMP bitmap files)
@@ -95,7 +100,7 @@ type
     fStyle: TFontStyles;
     function  GetHandle(): THandle;
   protected
-    procedure  ReadProperty(const PropName: string; Reader: TReader); override;
+    procedure ReadProperty(const PropName: string; Reader: TReader); override;
   public
     destructor Destroy; override;
     procedure Assign(AFont: TFont);
@@ -169,17 +174,37 @@ type
   private
     fSize: integer;
     fData: pByte;
+    EOnChange: TNotifyEvent;
+    procedure ClearData();
   protected
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
+    property  BinaryData: pByte read fData write fData;       // (Not standard)
+    property  BinaryDataSize: integer read fSize write fSize; //    "   "
   public
     destructor  Destroy; override;
+    property  OnChange: TNotifyEvent read EOnChange write EOnChange;
   end;
 
   TBitmap = class(TGraphicData)
   private
+{$IFDEF LLCL_OPT_IMGTRANSPARENT}
+    TranspType: integer;
+{$ENDIF LLCL_OPT_IMGTRANSPARENT}
     function  GetEmpty(): boolean;
-    procedure LoadFromMemory(BufferBitmap: pointer; BufferSize: integer);
     procedure DrawRect(const R: TRect; Canvas: TCanvas; Stretch: boolean);
+    procedure MoveToData(BufferBitmap: pointer; BufferSize: integer);
+{$IFDEF LLCL_OPT_PNGSUPPORT}
+    function  ConvertFromPNG(): boolean;
+{$ENDIF LLCL_OPT_PNGSUPPORT}
+{$IFDEF LLCL_OPT_IMGTRANSPARENT}
+    procedure TranspPreProcess();
+    function  TranspProcess(DestHDC: HDC; const R: TRect; Stretch: boolean): boolean;
+{$ENDIF LLCL_OPT_IMGTRANSPARENT}
+  protected
+{$IFDEF LLCL_OPT_PNGSUPPORT}
+    procedure ReadProperty(const PropName: string; Reader: TReader); override;
+{$ENDIF LLCL_OPT_PNGSUPPORT}
+    function  LoadFromMemory(BufferBitmap: pointer; BufferSize: integer): boolean;
   public
     procedure Assign(ABitmap: TBitmap);
     procedure LoadFromResourceName(Instance: THandle; const ResName: string);
@@ -189,9 +214,12 @@ type
 
   /// this TImage component only handle a bitmap
   TPicture = class(TPersistent)
-  fBitmap: TBitmap;
-  function  GetBitmap(): TBitmap;
-  procedure SetBitmap(ABitmap: TBitMap);
+  private
+    fBitmap: TBitmap;
+    EOnChange: TNotifyEvent;
+    function  GetBitmap(): TBitmap;
+    procedure SetBitmap(ABitmap: TBitmap);
+    procedure SetOnChange(Value: TNotifyEvent);
   protected
     procedure DrawRect(const R: TRect; Canvas: TCanvas; Stretch: boolean);
   public
@@ -202,6 +230,7 @@ type
 {$ENDIF FPC}
     procedure LoadFromFile(const FileName: string);
     property  Bitmap: TBitmap read GetBitmap write SetBitmap;
+    property  OnChange: TNotifyEvent read EOnChange write SetOnChange;
   end;
 
   TIcon = class(TGraphicData)
@@ -213,37 +242,6 @@ type
   public
     destructor Destroy; override;
     property  Handle: THandle read fHandle write SetHandle;
-  end;
-
-  PBMP = ^TBMP;
-  // match DFM binary content
-  TBMP = packed record
-    ClassName: string[7]; // "TBitmap"
-    Size: integer;
-    FileHeader: TBitmapFileHeader;
-    InfoHeader: TBitmapInfo;
-  end;
-
-  TIconHeader = packed record
-    idReserved: Word;       // Reserved (must always be 0)
-    idType: Word;           // Image type (1 for icon)
-    idCount: Word;          // Number of images
-  end;
-  TIconDirEntry = packed record
-    bWidth: Byte;           // Image width in pixels
-    bHeight: Byte;          // Image height in pixels
-    bColorCount: Byte;      // Number of colors in color palette (0 if no color palette)
-    bReserved: Byte;        // Reserved (must be 0)
-    wPlanes: Word;          // Color planes (0 or 1)
-    wBitCount: Word;        // Bits per pixel
-    dwBytesInRes: DWORD;    // Size of image data
-    dwImageOffset: DWORD;   // Offset of BMP/PNG data
-  end;
-  P1ICO = ^T1ICO;
-  T1ICO = packed record
-    FullSize: DWORD;
-    IconHeader: TIconHeader;
-    IconDirEntry: TIconDirEntry;
   end;
 
 const
@@ -298,11 +296,74 @@ const
 implementation
 
 uses
+{$IFDEF LLCL_OPT_PNGSUPPORT}
+  LLCLPng,
+{$ENDIF LLCL_OPT_PNGSUPPORT}
   SysUtils;
 
 {$IFDEF FPC}
   {$PUSH} {$HINTS OFF}
 {$ENDIF}
+
+type
+  PBMP = ^TBMP;
+  // match DFM binary content
+  TBMP = packed record
+    ClassName:  string[7];   // "TBitmap"
+    Size:       integer;
+    FileHeader: TBitmapFileHeader;
+    InfoHeader: TBitmapInfo;
+  end;
+const
+  TBMP_HEADERSIZE = 8 + 4;  // SizeOf(TBMP.ClassName) + SizeOf(TBMP.Size);
+
+{$IFDEF LLCL_OPT_PNGSUPPORT}
+type
+  TPNGFileData = packed record
+    Signature1: Longword;
+    Signature2: Longword;
+    Data:       array [0..0] of byte;
+  end;
+  PPNG = ^TPNG;
+  TPNG = packed record
+    ClassName:  string[23];  // "TPortableNetworkGraphic"
+    Size:       integer;
+    FileData:   TPNGFileData;
+  end;
+const
+  TPNG_HEADERSIZE = 24 + 4; // SizeOf(TPNG.ClassName) + SizeOf(TPNG.Size);
+{$ENDIF LLCL_OPT_PNGSUPPORT}
+
+type
+  TIconHeader = packed record
+    idReserved: Word;       // Reserved (must always be 0)
+    idType:     Word;       // Image type (1 for icon)
+    idCount:    Word;       // Number of images
+  end;
+  TIconDirEntry = packed record
+    bWidth:         Byte;   // Image width in pixels
+    bHeight:        Byte;   // Image height in pixels
+    bColorCount:    Byte;   // Number of colors in color palette (0 if no color palette)
+    bReserved:      Byte;   // Reserved (must be 0)
+    wPlanes:        Word;   // Color planes (0 or 1)
+    wBitCount:      Word;   // Bits per pixel
+    dwBytesInRes:   DWORD;  // Size of image data
+    dwImageOffset:  DWORD;  // Offset of BMP/PNG data
+  end;
+  P1ICO = ^T1ICO;
+  T1ICO = packed record
+    FullSize:     DWORD;
+    IconHeader:   TIconHeader;
+    IconDirEntry: TIconDirEntry;
+  end;
+
+const
+  TBITMAPNAME       = 'TBitmap';
+  TBITMAPIDENT      = $4D42;      // 'BM' inversed
+{$IFDEF LLCL_OPT_PNGSUPPORT}
+  TPNGGRAPHICNAME   = 'TPortableNetworkGraphic';
+  TPNGSIGNATURE1    = $474E5089;  // #89'PNG' inversed
+{$ENDIF LLCL_OPT_PNGSUPPORT}
 
 //------------------------------------------------------------------------------
 
@@ -323,7 +384,7 @@ begin
     1 : fHeight := Reader.IntegerProperty;
     2 : fName := Reader.StringProperty;
     3 : Reader.SetProperty(fStyle, TypeInfo(TFontStyle));
-   else inherited;
+    else inherited;
   end;
 end;
 
@@ -437,7 +498,7 @@ end;
 
 procedure TCanvas.FillRect(const R: TRect);
 begin
-  LLCL_FillRect(fHandle, R, Brush.GetHandle());
+  LLCL_FillRect(fHandle, R, Brush.Handle);
 end;
 
 procedure TCanvas.Rectangle(x1,y1,x2,y2: integer);
@@ -509,8 +570,7 @@ end;
 
 destructor TGraphicData.Destroy;
 begin
-  if Assigned(fData) then
-    FreeMem(fData);
+  ClearData();
   inherited;
 end;
 
@@ -519,25 +579,32 @@ const Properties: array[0..0] of PChar = ('Data');
 begin
   case StringIndex(PropName, Properties) of
     0 : fData := Reader.BinaryProperty(fSize);
-   else inherited;
+    else inherited;
   end;
+end;
+
+procedure TGraphicData.ClearData();
+begin
+  LLCLS_FreeMemAndNil(fData);
+  fSize := 0;
+  if Assigned(EOnChange) then
+    EOnChange(self);
 end;
 
 { TBitmap }
 
 procedure TBitmap.Assign(ABitmap: TBitmap);
 begin
-  if Assigned(fData) then
-    FreeMem(fData);
+  ClearData();
+  {$IFDEF LLCL_OPT_IMGTRANSPARENT}
+  TranspType := 0;
+  {$ENDIF LLCL_OPT_IMGTRANSPARENT}
   if Assigned(ABitmap) then
     begin
       fSize := ABitmap.fSize;
+      GetMem(fData, fSize);
       Move(ABitmap.fData, fData, fSize);
-    end
-  else
-    begin
-      fData := nil;
-      fSize := 0;
+      // (No ConvertFromPNG call, because it's not supposed to be possible here)
     end;
 end;
 
@@ -549,74 +616,232 @@ end;
 procedure TBitmap.DrawRect(const R: TRect; Canvas: TCanvas; Stretch: boolean);
 var Width, Height, YCoord: integer;
 begin
-  if Assigned(fData) and (fSize>=SizeOf(TBitmapFileHeader)) then
+  if Assigned(fData) and (fSize>=(TBMP_HEADERSIZE + SizeOf(TBitmapFileHeader))) then
   with PBMP(fData)^ do
-  if (string(ClassName)='TBitmap') and (FileHeader.bfType=$4D42) then   // 'BM' inversed
-    if Stretch then
-      begin
-        LLCL_SetStretchBltMode(Canvas.Handle, HALFTONE);
+  if (string(ClassName)=TBITMAPNAME) and (FileHeader.bfType=TBITMAPIDENT) then
+    begin
+      YCoord := 0;
+      Width := R.Right - R.Left;
+      Height := R.Bottom - R.Top;
+      if Stretch then
+        LLCL_SetStretchBltMode(Canvas.Handle, HALFTONE)
+      else
+        begin
+          if InfoHeader.bmiHeader.biWidth<Width then
+            Width := InfoHeader.bmiHeader.biWidth;
+          if InfoHeader.bmiHeader.biHeight<Height then
+            Height := InfoHeader.bmiHeader.biHeight
+          else
+            YCoord := InfoHeader.bmiHeader.biHeight - Height;
+        end;
+      {$IFDEF LLCL_OPT_IMGTRANSPARENT}
+      if InfoHeader.bmiHeader.biBitCount=32 then
+        begin
+          if TranspType=0 then
+            TranspPreProcess();
+          if TranspType>=2 then
+            begin
+              // (Rect used though not really corresponding - Width<>Right and Height<>Bottom);
+              TranspProcess(Canvas.Handle, Rect(R.Left, R.Top, Width, Height), Stretch);
+              exit;
+            end;
+        end;
+      {$ENDIF LLCL_OPT_IMGTRANSPARENT}
+      if Stretch then
         LLCL_StretchDIBits(
-        Canvas.Handle,    // handle of device context
-        R.Left,           // x-coordinate of upper-left corner of dest. rectangle
-        R.Top,            // y-coordinate of upper-left corner of dest. rectangle
-        R.Right-R.Left,   // dest. rectangle width
-        R.Bottom-R.Top,   // dest. rectangle height
-        0, // x-coordinate of lower-left corner of source rect.
-        0, // y-coordinate of lower-left corner of source rect.
-        InfoHeader.bmiHeader.biWidth,  // source rectangle width
-        InfoHeader.bmiHeader.biHeight, // source rectangle height
-        {$IFDEF FPC}    // Avoid compilation warnings
-        pByte(pByte(@FileHeader)+FileHeader.bfOffBits), // address of array with DIB bits
-        {$ELSE FPC}
-        pByte(NativeUInt(@FileHeader)+NativeUInt(FileHeader.bfOffBits)), // address of array with DIB bits
-        {$ENDIF FPC}
-        InfoHeader,     // address of structure with bitmap info.
-        DIB_RGB_COLORS, // RGB or palette indices
-        SRCCOPY);
-      end
-    else
-      begin
-        Width := InfoHeader.bmiHeader.biWidth;
-        if Width > (R.Right-R.Left) then Width := (R.Right-R.Left);
-        YCoord := 0;
-        Height := InfoHeader.bmiHeader.biHeight;
-        if Height > (R.Bottom-R.Top) then
-          begin
-            YCoord := Height - (R.Bottom-R.Top);
-            Height := (R.Bottom-R.Top);
-          end;
+          Canvas.Handle,  // handle of device context
+          R.Left,         // x-coordinate of upper-left corner of dest. rectangle
+          R.Top,          // y-coordinate of upper-left corner of dest. rectangle
+          Width,          // dest. rectangle width
+          Height,         // dest. rectangle height
+          0,      // x-coordinate of lower-left corner of source rect.
+          YCoord, // y-coordinate of lower-left corner of source rect.
+          InfoHeader.bmiHeader.biWidth,  // source rectangle width
+          InfoHeader.bmiHeader.biHeight, // source rectangle height
+          {$IFDEF FPC}    // Avoid compilation warnings
+          pByte(pByte(@FileHeader) + FileHeader.bfOffBits), // address of array with DIB bits
+          {$ELSE FPC}
+          pByte(NativeUInt(@FileHeader) + NativeUInt(FileHeader.bfOffBits)),  // address of array with DIB bits
+          {$ENDIF FPC}
+          InfoHeader,     // address of structure with bitmap info.
+          DIB_RGB_COLORS, // RGB or palette indices
+          SRCCOPY)
+      else
         LLCL_SetDIBitsToDevice(
-        Canvas.Handle,  // handle of device context
-        R.Left,         // x-coordinate of upper-left corner of dest. rectangle
-        R.Top,          // y-coordinate of upper-left corner of dest. rectangle
-        Width,          // image width
-        Height,         // image height
-        0,      // x-coordinate of lower-left corner of source rect.
-        YCoord, // y-coordinate of lower-left corner of source rect.
-        0,      // first scan line in array
-        InfoHeader.bmiHeader.biHeight, // number of scan lines
-        {$IFDEF FPC}    // Avoid compilation warnings
-        pByte(pByte(@FileHeader)+FileHeader.bfOffBits), // address of array with DIB bits
-        {$ELSE FPC}
-        pByte(NativeUInt(@FileHeader)+NativeUInt(FileHeader.bfOffBits)), // address of array with DIB bits
-        {$ENDIF FPC}
-        InfoHeader,     // address of structure with bitmap info.
-        DIB_RGB_COLORS  // RGB or palette indices
-        );
-      end;
+          Canvas.Handle,  // handle of device context
+          R.Left,         // x-coordinate of upper-left corner of dest. rectangle
+          R.Top,          // y-coordinate of upper-left corner of dest. rectangle
+          Width,          // image width
+          Height,         // image height
+          0,      // x-coordinate of lower-left corner of source rect.
+          YCoord, // y-coordinate of lower-left corner of source rect.
+          0,      // first scan line in array
+          InfoHeader.bmiHeader.biHeight, // number of scan lines
+          {$IFDEF FPC}    // Avoid compilation warnings
+          pByte(pByte(@FileHeader) + FileHeader.bfOffBits), // address of array with DIB bits
+          {$ELSE FPC}
+          pByte(NativeUInt(@FileHeader) + NativeUInt(FileHeader.bfOffBits)),  // address of array with DIB bits
+          {$ENDIF FPC}
+          InfoHeader,     // address of structure with bitmap info.
+          DIB_RGB_COLORS  // RGB or palette indices
+          );
+    end;
 end;
 
-procedure TBitmap.LoadFromMemory(BufferBitmap: pointer; BufferSize: integer);
+procedure TBitmap.MoveToData(BufferBitmap: pointer; BufferSize: integer);
 begin
-  if Assigned(fData) then
-    FreeMem(fData);
-  fSize := BufferSize+(SizeOf(PBMP(fData)^.ClassName)+SizeOf(PBMP(fData)^.Size));
+  ClearData();
+  {$IFDEF LLCL_OPT_IMGTRANSPARENT}
+  TranspType := 0;
+  {$ENDIF LLCL_OPT_IMGTRANSPARENT}
+  fSize := TBMP_HEADERSIZE + BufferSize;
   GetMem(fData, fSize);
   with PBMP(fData)^ do begin // mimic .dfm binary stream
-    ClassName := 'TBitmap';
+    ClassName := TBITMAPNAME;
     Size := BufferSize;
     Move(BufferBitmap^, FileHeader, BufferSize);
   end;
+end;
+
+{$IFDEF LLCL_OPT_PNGSUPPORT}
+function  TBitmap.ConvertFromPNG(): boolean;
+var BufferBitmap: PByteArray;
+var BufferSize: cardinal;
+begin
+  result := false;
+  if Assigned(fData) and (fSize>=(TPNG_HEADERSIZE + SizeOf(TPNGFileData))) then
+  with PPNG(fData)^ do
+  if (string(ClassName)=TPNGGRAPHICNAME) and (FileData.Signature1=TPNGSIGNATURE1) then
+    begin
+      if PNGToBMP(@FileData, Size, BufferBitmap, BufferSize) then
+        begin
+          MoveToData(BufferBitmap, BufferSize);
+          FreeMem(BufferBitmap);
+          result := true;
+        end;
+    end;
+  if not result then
+    ClearData();
+end;
+
+procedure TBitmap.ReadProperty(const PropName: string; Reader: TReader);
+const Properties: array[0..0] of PChar = ('Data');
+begin
+  case StringIndex(PropName, Properties) of
+    0 : begin
+          inherited;
+          if (fSize>=(TPNG_HEADERSIZE + SizeOf(TPNGFileData))) and (PPNG(fData)^.FileData.Signature1=TPNGSIGNATURE1) then
+            ConvertFromPNG();
+        end;
+    else inherited;
+  end;
+end;
+{$ENDIF LLCL_OPT_PNGSUPPORT}
+
+{$IFDEF LLCL_OPT_IMGTRANSPARENT}
+procedure TBitmap.TranspPreProcess();
+var pData, pDataTmp, pDataLoop: pByteArray;
+var NbrPixels: integer;
+var bAlpha: byte;
+var IsTransp: boolean;
+var i1, i2: integer;
+begin
+  IsTransp := false;
+  TranspType := 1;
+  if CheckWin32Version(LLCL_WIN2000_MAJ, LLCL_WIN2000_MIN) and LLCLS_CheckAlphaBlend() then
+    begin
+      with PBMP(fData)^ do
+        begin
+          NbrPixels := InfoHeader.bmiHeader.biHeight * InfoHeader.bmiHeader.biWidth;
+          GetMem(pDataTmp, NbrPixels * 4);
+          {$IFDEF FPC}    // Avoid compilation warnings
+          pData := pByteArray(pByte(@FileHeader) + FileHeader.bfOffBits);
+          {$ELSE FPC}
+          pData := pByteArray(NativeUInt(@FileHeader) + NativeUInt(FileHeader.bfOffBits));
+          {$ENDIF FPC}
+        end;
+      Move(pData^, pDataTmp^, NbrPixels * 4);
+      pDataLoop := pDataTmp;
+      // Premultiply for AlphaBlend
+      for i1 := 0 to NbrPixels-1 do
+        begin
+          bAlpha := pDataLoop^[3];
+          if bAlpha=0 then
+            PLongword(pDataLoop)^ := 0
+          else
+            begin
+              IsTransp := true;
+              if bAlpha<>$FF then
+                for i2 := 0 to 2 do
+                  pDataLoop^[i2] := (pDataLoop^[i2] * bAlpha) div $FF;
+            end;
+          inc(pByte(pDataLoop), 4);
+        end;
+      if IsTransp then
+        begin
+          TranspType := 2;
+          Move(pDataTmp^, pData^, NbrPixels * 4);
+        end;
+      FreeMem(pDataTmp);
+    end;
+end;
+
+function  TBitmap.TranspProcess(DestHDC: HDC; const R: TRect; Stretch: boolean): boolean;
+var BMPHDC: HDC;
+var BMPHandle: HBITMAP;
+var ftn: BLENDFUNCTION;
+var BMPWidth, BMPHeight: integer;
+begin
+  ftn.BlendOp := AC_SRC_OVER;
+  ftn.BlendFlags := 0;
+  ftn.SourceConstantAlpha := $FF;
+  ftn.AlphaFormat := AC_SRC_ALPHA;
+  with PBMP(fData)^ do
+    begin
+      BMPHDC := LLCL_CreateCompatibleDC(DestHDC);
+      {$IFDEF FPC}    // Avoid compilation warnings
+      BMPHandle := LLCL_CreateDIBitmap(DestHDC, @InfoHeader, CBM_INIT, pByte(pByte(@FileHeader) + FileHeader.bfOffBits), @InfoHeader, DIB_RGB_COLORS);
+      {$ELSE FPC}
+      BMPHandle := LLCL_CreateDIBitmap(DestHDC, @InfoHeader, CBM_INIT, pByte(NativeUInt(@FileHeader) + NativeUInt(FileHeader.bfOffBits)), @InfoHeader, DIB_RGB_COLORS);
+      {$ENDIF FPC}
+      LLCL_SelectObject(BMPHDC, BMPHandle);
+      BMPWidth := InfoHeader.bmiHeader.biWidth;
+      BMPHeight := InfoHeader.bmiHeader.biHeight;
+      if not Stretch then
+        begin
+          if BMPWidth>R.Right then BMPWidth := R.Right;
+          if BMPHeight>R.Bottom then BMPHeight := R.Bottom;
+        end;
+      result := LLCLS_AlphaBlend(DestHDC, R.Left, R.Top, R.Right, R.Bottom, BMPHDC, 0, 0, BMPWidth, BMPHeight, ftn);
+      LLCL_DeleteObject(BMPHandle);
+      LLCL_DeleteDC(BMPHDC);
+    end;
+end;
+{$ENDIF LLCL_OPT_IMGTRANSPARENT}
+
+function  TBitmap.LoadFromMemory(BufferBitmap: pointer; BufferSize: integer): boolean;
+begin
+  result := true;
+  ClearData();
+  // minimal checks
+  if (BufferSize>=SizeOf(TBitmapFileHeader)) and (PWord(BufferBitmap)^=TBITMAPIDENT) then
+    MoveToData(BufferBitmap, BufferSize)
+  else
+{$IFDEF LLCL_OPT_PNGSUPPORT}
+    if (BufferSize>=SizeOf(TPNGFileData)) and (PLongword(BufferBitmap)^=TPNGSIGNATURE1) then
+      begin
+        fSize := TPNG_HEADERSIZE + BufferSize;
+        GetMem(fData, fSize);
+        with PPNG(fData)^ do begin
+          ClassName := TPNGGRAPHICNAME;
+          Size := BufferSize;
+          Move(BufferBitmap^, FileData, BufferSize);
+          result := ConvertFromPNG();   // (fData and fSize cleared inside ConvertFromPNG, if not OK)
+        end;
+      end
+    else
+{$ENDIF LLCL_OPT_PNGSUPPORT}
+      result := false;
 end;
 
 procedure TBitmap.LoadFromResourceName(Instance: THandle; const ResName: string);
@@ -631,9 +856,9 @@ begin
       HRes := LLCL_LockResource(HGlobal);
       if Assigned(HRes) then begin
         LoadFromMemory(HRes, SizeOfResource(Instance, HResInfo));
-        LLCL_UnlockResource(NativeUInt(HRes));
+        // LLCL_UnlockResource(NativeUInt(HRes)); obsolete for Windows 32/64
       end;
-      LLCL_FreeResource(HGlobal);
+      // LLCL_FreeResource(HGlobal); obsolete for Windows 32/64
     end;
   end;
 end;
@@ -652,18 +877,13 @@ begin
   if FileHandle<>0 then
     begin
       FileSizeLow := LLCL_GetFileSize(FileHandle, FileSizeHigh);
-      if (FileSizeLow>14) and (FileSizeLow<>INVALID_FILE_SIZE) and (FileSizeHigh=0) then    // (bitmap < 4GB)
+      if (FileSizeLow>8) and (FileSizeLow<>INVALID_FILE_SIZE) and (FileSizeHigh=0) then    // (data < 4GB)
         if integer(LLCL_SetFilePointer(FileHandle, 0, nil, FILE_BEGIN))<>INVALID_SET_FILE_POINTER then
           begin
             BufferSize := FileSizeLow;
             GetMem(Buffer, BufferSize);
             if LLCL_ReadFile(FileHandle, Buffer^, BufferSize, FileSizeLow, nil) then
-              // Minimal check
-              if pWord(Buffer)^=$4D42 then    // 'BM' inversed
-                begin
-                  LoadFromMemory(Buffer, BufferSize);
-                  IsOk := true;
-                end;
+              IsOK := LoadFromMemory(Buffer, BufferSize);
             FreeMem(Buffer);
           end;
       LLCL_CloseHandle(FileHandle);
@@ -696,9 +916,14 @@ begin
   result := fBitmap;
 end;
 
-procedure TPicture.SetBitmap(ABitmap: TBitMap);
+procedure TPicture.SetBitmap(ABitmap: TBitmap);
 begin
   Bitmap.Assign(ABitmap);   // (not fBitmap);
+end;
+
+procedure TPicture.SetOnChange(Value: TNotifyEvent);
+begin
+  Bitmap.OnChange := Value;       // (not fBitmap)
 end;
 
 procedure TPicture.DrawRect(const R: TRect; Canvas: TCanvas; Stretch: boolean);
@@ -735,12 +960,12 @@ begin
   if fSize>SizeOf(T1ICO) then
     with P1ICO(fData)^ do
       if (FullSize>SizeOf(T1ICO)) and (IconHeader.idCount>=1) and (IconDirEntry.dwBytesInRes>0) and
-        (IconDirEntry.dwImageOffset+IconDirEntry.dwBytesInRes<=FullSize) then
+        (IconDirEntry.dwImageOffset + IconDirEntry.dwBytesInRes<=FullSize) then
         {$IFDEF FPC}    // Avoid compilation warnings
-        fHandle := LLCL_CreateIconFromResource(pByte(fData+SizeOf(FullSize)+IconDirEntry.dwImageOffset),
+        fHandle := LLCL_CreateIconFromResource(pByte(fData + SizeOf(FullSize) + IconDirEntry.dwImageOffset),
                       IconDirEntry.dwBytesInRes, true, $00030000);
         {$ELSE FPC}
-        fHandle := LLCL_CreateIconFromResource(pByte(NativeUInt(fData)+NativeUInt(SizeOf(FullSize))+NativeUInt(IconDirEntry.dwImageOffset)),
+        fHandle := LLCL_CreateIconFromResource(pByte(NativeUInt(fData) + NativeUInt(SizeOf(FullSize)) + NativeUInt(IconDirEntry.dwImageOffset)),
                       IconDirEntry.dwBytesInRes, true, $00030000);
         {$ENDIF FPC}
 end;

@@ -12,15 +12,19 @@ unit ExtCtrls;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * TImage: Changed added (when bitmap data are changed)
+    * TImage: SetStretch modified
+    * LLCL_OPT_USEIMAGE option added (enabled by default - see LLCLOptions.inc)
    Version 1.00:
     * TImage: Show and Hide added (see TGraphicControl)
     * TImage: Stretch added
@@ -66,6 +70,7 @@ unit ExtCtrls;
   {$I LLCLFPCInc.inc}             // For mode
   {$undef LLCL_FPC_MODESECTION}
 {$ENDIF}
+{$ifdef FPC_OBJFPC} {$define LLCL_OBJFPC_MODE} {$endif} // Object pascal mode
 
 {$I LLCLOptions.inc}      // Options
 
@@ -78,6 +83,8 @@ uses
   Classes, Controls, {$ifdef LLCL_OPT_USEMENUS}Menus,{$endif} Graphics;
 
 type
+
+{$ifdef LLCL_OPT_USEIMAGE}
   TImage = class(TGraphicControl)
   private
     fPicture: TPicture;
@@ -85,6 +92,7 @@ type
     function  GetPicture(): TPicture;
     procedure SetPicture(APicture: TPicture);
     procedure SetStretch(const Value: boolean);
+    procedure Changed(Sender: TObject);
   protected
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     function  SubProperty(const SubPropName: string): TPersistent; override;
@@ -95,6 +103,7 @@ type
     property  Picture: TPicture read GetPicture write SetPicture;
     property  Stretch: boolean read fStretch write SetStretch;
   end;
+{$endif LLCL_OPT_USEIMAGE}
 
   TTimer = class(TNonVisualControl)
   private
@@ -187,8 +196,10 @@ uses
   {$PUSH} {$HINTS OFF}
 {$ENDIF}
 
+{$ifdef LLCL_OPT_USEIMAGE}
 type
   TPPicture = class(TPicture);        // To access to protected part
+{$endif LLCL_OPT_USEIMAGE}
 
 const
   NIF_MESSAGE   = $00000001;      // SysTray
@@ -217,6 +228,7 @@ begin
 end;
 {$ENDIF FPC}
 
+{$ifdef LLCL_OPT_USEIMAGE}
 { TImage }
 
 constructor TImage.Create(AOwner: TComponent);
@@ -236,6 +248,7 @@ function TImage.GetPicture(): TPicture;
 begin
   if fPicture=nil then
     fPicture := TPicture.Create;
+  fPicture.OnChange := {$IFDEF LLCL_OBJFPC_MODE}@{$ENDIF}Changed;
   result := fPicture;
 end;
 
@@ -248,7 +261,13 @@ procedure TImage.SetStretch(const Value: boolean);
 begin
   if fStretch=Value then exit;
   fStretch := Value;
-  Show;
+  Changed(self);
+end;
+
+procedure TImage.Changed(Sender: TObject);
+begin
+  if Visible then
+    InvalidateEx(true);
 end;
 
 procedure TImage.ReadProperty(const PropName: string; Reader: TReader);
@@ -274,6 +293,7 @@ begin
   if fPicture<>nil then
     TPPicture(fPicture).DrawRect(ClientRect, Canvas, fStretch); // not VCL standard, but works for BITMAP
 end;
+{$endif LLCL_OPT_USEIMAGE}
 
 { TTimer }
 
@@ -530,7 +550,7 @@ end;
 //------------------------------------------------------------------------------
 
 initialization
-  RegisterClasses([TImage, TTimer, TTrayIcon]);
+  RegisterClasses([TTimer, TTrayIcon {$ifdef LLCL_OPT_USEIMAGE}, TImage{$endif}]);
 
 {$IFDEF FPC}
   {$POP}

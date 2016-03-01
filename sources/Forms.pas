@@ -12,15 +12,19 @@ unit Forms;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * Bug fix: Color in TCustomForm
+    * TForm: 'BorderStyle', 'Position' and 'FormStyle' properties now accessible (design time only)
+    * TApplication: AppHandle moved in protected part
    Version 1.00:
     * Old unused properties removed: OldCreateOrder, PixelsPerInch and TextHeight
     * IsAccel function added
@@ -177,6 +181,9 @@ type
     property  ActiveControl: TWinControl read fActiveControl write SetActiveControl;
     property  KeyPreview: boolean read fKeyPreview write fKeyPreview;
     property  WindowState: TWindowState read fWindowState write SetWindowState;
+    property  BorderStyle: TFormBorderStyle read fBorderStyle write fBorderStyle; // Run-time modification ignored; write present only for dynamical control creation purpose
+    property  Position: TPosition read fPosition write fPosition;                 // Run-time modification ignored; write present only for dynamical control creation purpose
+    property  FormStyle: TFormStyle read fFormStyle write fFormStyle;             // Run-time modification ignored; write present only for dynamical control creation purpose
     {$ifdef LLCL_OPT_USEMENUS}
     property  Menu: TMainMenu read fMenu write fMenu;
     {$endif}
@@ -213,7 +220,6 @@ type
     {$endif}
     EOnMinimize,
     EOnRestore: TNotifyEvent;
-    function  AppHandle(): THandle;
     procedure SetTitle(const Value: string);
     procedure SetBiDiMode(const Value: TBiDiMode);
     {$ifndef DefNo_MainFormOnTaskBar}
@@ -224,6 +230,8 @@ type
     {$ifdef LLCL_OPT_TOPFORM}
     procedure SetVisible(ShowCall: boolean);
     {$endif}
+  protected
+    function  AppHandle(): THandle;
   public
     constructor Create(AOwner: TComponent); override;
     destructor  Destroy; override;
@@ -328,7 +336,7 @@ end;
 
 { TCustomForm }
 
-constructor TCustomForm.Create(AOwner:TComponent);
+constructor TCustomForm.Create(AOwner: TComponent);
 begin
   ATType := ATTCustomForm;    // Needed before inherited
   inherited;
@@ -427,7 +435,8 @@ begin
     SetBounds(aRect.Left, aRect.Top, Width, Height);
   // UI
   if CheckWin32Version(LLCL_WIN2000_MAJ, LLCL_WIN2000_MIN) then
-    LLCL_PostMessage(Handle, WM_CHANGEUISTATE, WPARAM(UIS_INITIALIZE or ((UISF_HIDEFOCUS or UISF_HIDEACCEL) shl 16)), 0);
+    // (Clear UI states if LLCL_OPT_NESTEDGROUPBOXWINXPFIX activated)
+    LLCL_PostMessage(Handle, WM_CHANGEUISTATE, WPARAM({$ifdef LLCL_OPT_NESTEDGROUPBOXWINXPFIX}UIS_CLEAR{$else}UIS_INITIALIZE{$endif} or ((UISF_HIDEFOCUS or UISF_HIDEACCEL) shl 16)), 0);
 end;
 
 procedure TCustomForm.CreateParams(var Params : TCreateParams);
@@ -833,7 +842,6 @@ procedure TApplication.CreateHandle;
 var WndClass: TWndClass;
 var Style, ExStyle: cardinal;
 var SystemMenu: THandle;
-var sClassName: string;   // Conversion needed (especially because System and RTL are not fully Unicode for FPC)
 begin
   // Application Class
   FillChar(WndClass, SizeOf(WndClass), 0);
@@ -850,8 +858,7 @@ begin
   ExStyle := 0;
   if (not fMainFormOnTaskBar) then
     ExStyle := ExStyle or WS_EX_APPWINDOW;
-  sClassName := string(WndClass.lpszClassName);
-  fHandle := LLCL_CreateWindowEx(ExStyle, @sClassName[1], @fTitle[1], Style,
+  fHandle := LLCL_CreateWindowEx(ExStyle, TAPPL_CLASS, @fTitle[1], Style,
     LLCL_GetSystemMetrics(SM_CXSCREEN) div 2, LLCL_GetSystemMetrics(SM_CYSCREEN) div 2,
     0, 0, 0, 0, WndClass.hInstance, nil);
   SystemMenu := LLCL_GetSystemMenu(fHandle, False);

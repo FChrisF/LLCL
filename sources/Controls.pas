@@ -12,15 +12,26 @@ unit Controls;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * Bug fix and modification: background color support
+    * TStringGrid and TSelectDirectoryDialog control types added
+    * TWinControl: notifications for child controls modified
+    * Bug fix for nested groupboxes with Windows XP (not enabled by default - see LLCL_OPT_NESTEDGROUPBOXWINXPFIX option)
+    * KeysToShiftState/KeyDataToShiftState moved to LLCLOSInt
+    * TVisualControl: 'Alignment' property added (not standard - design time only)
+    * TWinControl: modifications in WMEraseBkGnd, WMPaint and ColorCall
+    * TWinControl: DoubleBuffered added, used only by Forms (not enabled by default - see LLCL_OPT_DOUBLEBUFF option)
+    * TWinControl: WM_SIZE and WM_MOVE taken into account only by Forms
+    * TWinControl: fix for StaticText control when size is modified
    Version 1.00:
     * TWinControl: BringToFront (not standard)
     * TWinControl: TabStop and ControlCount properties
@@ -101,7 +112,8 @@ type
   TAllControlTypes = (ATTNone, ATTCustomForm, ATTLabel, ATTButton, ATTEdit, ATTCheckBox,
     ATTRadioButton, ATTGroupBox, ATTMemo, ATTComboBox, ATTListBox, ATTStaticText,
     ATTImage, ATTProgressBar, ATTTrackBar, ATTMenuItem, ATTMainMenu, ATTPopupMenu,
-    ATTTimer, ATTTrayIcon, ATTOpenDialog, ATTSaveDialog);
+    ATTTimer, ATTTrayIcon, ATTOpenDialog, ATTSaveDialog, ATTSelectDirectoryDialog,
+    ATTStringGrid);
 
   TMouseButton = (mbLeft, mbRight, mbMiddle);
 
@@ -171,6 +183,7 @@ type
     fVisible,
     fTransparent: boolean;
     fCaption: string;
+    fAlignment: TAlignment;
     fShowCommand: integer;
     fAutoSize: boolean;
     EOnShow: TNotifyEvent;
@@ -213,6 +226,7 @@ type
     property  Color: integer read fColor write SetColor;
     property  Transparent: boolean read fTransparent write fTransparent;
     property  Caption: string read fCaption write SetCaption;
+    property  Alignment: TAlignment read fAlignment write fAlignment;   // Run-time modification ignored; write present only for dynamical control creation purpose
     property  Visible: boolean read fVisible write SetVisible;
     property  AutoSize: boolean read fAutoSize write fAutoSize;
     property  ParentFont: boolean read fParentFont write fParentFont;
@@ -256,8 +270,10 @@ type
     fArrowKeysInternal: boolean;      // Controls using arrow keys internally
     fSpecTabStop: boolean;            // For specific TabStop
     fKeyboardMsg: byte;               // Specific for keyboard messages (see TComboBox): 0=Standard, 1=Do not Inherit, 2=Do not PostProcess, 3+=Specific
+    fTabTestFirstCtrl: TWinControl;
     fOldProc: TFNWndProc;
     fClicked: boolean;
+    fDoubleBuffered: boolean;
     EOnKeyPress: TKeyPressEvent;
     EOnKeyDown: TKeyEvent;
     EOnKeyUp: TKeyEvent;
@@ -281,7 +297,6 @@ type
     function  ForWMChar(var Msg: TWMKey; EOnForKeyPress: TKeyPressEvent): boolean;
     procedure ForControlCall(var Msg: TMessage; CControlIdent: integer; CATType: TAllControlTypes);
     function  GetChildControl(Value: THandle): integer;
-    procedure ForWMHVScroll(var Msg: TWMHScroll);   // (or TWMVScroll)
     procedure UpdTextSize(const Value: string);
   protected
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
@@ -296,19 +311,20 @@ type
     function  GetTabOrder(): integer;
     procedure SetTabOrder(Value: integer);
     procedure ClickCall(ChangeFocus: boolean; DoSetFocus: boolean);
-    procedure ColorCall(var Msg: TWMCtlColorStatic);
+    function  ColorCall(var Msg: TWMCtlColorStatic): boolean;
     function  ColorForSubCont(SubContMsg: integer; SubConthWnd: THandle): boolean; virtual;
     procedure FormFocus();
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; virtual;
     function  GetSpecTabStop(): boolean; virtual;
-    procedure ComponentNotif(var Msg: TMessage); virtual;
+    function  ForwardChildMsg(var Msg: TMessage; WndChild: THandle): boolean; virtual;
+    function  ComponentNotif(var Msg: TMessage): boolean; virtual;
     procedure AdjustTextSize(var Size: TSize); virtual;
-    procedure WMLButtonDown(var Msg: TWMLButtonDown); message WM_LBUTTONDOWN;
-    procedure WMLButtonUp(var Msg: TWMLButtonUp); message WM_LBUTTONUP;
-    procedure WMRButtonDown(var Msg: TWMRButtonDown); message WM_RBUTTONDOWN;
-    procedure WMRButtonUp(var Msg: TWMRButtonUp); message WM_RBUTTONUP;
-    procedure WMLDblClick(var Msg: TWMLButtonDblClk); message WM_LBUTTONDBLCLK;
-    procedure WMRDblClick(var Msg: TWMLButtonDblClk); message WM_RBUTTONDBLCLK;
+    procedure WMLButtonDown(var Msg: TWMLButtonDown); message WM_LBUTTONDOWN;   // Used in Grids, if "DefNo_StdMouseMessages"
+    procedure WMLButtonUp(var Msg: TWMLButtonUp); message WM_LBUTTONUP;         // Used in Grids, if "DefNo_StdMouseMessages"
+    procedure WMRButtonDown(var Msg: TWMRButtonDown); message WM_RBUTTONDOWN;   // Used in Grids, if "DefNo_StdMouseMessages"
+    procedure WMRButtonUp(var Msg: TWMRButtonUp); message WM_RBUTTONUP;         // Used in Grids, if "DefNo_StdMouseMessages"
+    procedure WMLDblClick(var Msg: TWMLButtonDblClk); message WM_LBUTTONDBLCLK; // Used in Grids, if "DefNo_StdMouseMessages"
+    procedure WMRDblClick(var Msg: TWMRButtonDblClk); message WM_RBUTTONDBLCLK; // Used in Grids, if "DefNo_StdMouseMessages"
     procedure WMChar(var Msg: TWMChar); message WM_CHAR;
     procedure WMKeyDown(var Msg: TWMKeyDown); message WM_KEYDOWN;
     procedure WMKeyUp(var Msg: TWMKeyUp); message WM_KEYUP;
@@ -336,6 +352,7 @@ type
     procedure WMMouseMove(var Msg: TWMMouseMove); message WM_MOUSEMOVE;
     procedure WMHScroll(var Msg: TWMHScroll); message WM_HSCROLL;   // Used also in ComCtrls (TrackBar indirectly)
     procedure WMVScroll(var Msg: TWMVScroll); message WM_VSCROLL;   // Used also in ComCtrls (TrackBar indirectly)
+    procedure WMNotify(var Msg: TWMNotify); message WM_NOTIFY;      // Used also in Grids (StringGrid indirectly)
     property  ArrowKeysInternal: boolean read fArrowKeysInternal write fArrowKeysInternal;
     property  SpecTabStop: boolean read GetSpecTabStop write fSpecTabStop;
     property  KeyboardMsg: byte read fKeyboardMsg write fKeyboardMsg;   // (Not LCL/VCL standard)
@@ -358,6 +375,7 @@ type
     property  Enabled: boolean read fEnabled write SetEnabled;
     property  Controls: TList read fControls;
     property  ControlCount: integer read GetCCount write SetCCount;
+    property  DoubleBuffered: boolean read fDoubleBuffered write fDoubleBuffered;
     property  OnKeyPress: TKeyPressEvent read EOnKeyPress write EOnKeyPress;
     property  OnKeyDown: TKeyEvent read EOnKeyDown write EOnKeyDown;
     property  OnKeyUp: TKeyEvent read EOnKeyUp write EOnKeyUp;
@@ -401,13 +419,11 @@ const
   UITYPE_ACCELERATOR    = 0;
   UITYPE_FOCUS          = 1;
 
-//  // Can contain controls
+  // Can contain controls
   TContainControls = [ATTCustomForm, ATTGroupBox];
   // Click on control doesn't set focus
   TNonClickFocusCtrl = [ATTCustomForm, ATTStaticText, ATTProgressBar];
 
-function KeysToShiftState(Keys: Word): TShiftState; forward;
-function KeyDataToShiftState(KeyData: integer): TShiftState; forward;
 function TWCWndProc(hWnd: THandle; Msg: cardinal; awParam, alParam: NativeUInt): NativeUInt; stdcall; forward;
 
 //------------------------------------------------------------------------------
@@ -419,27 +435,6 @@ begin
   result := false;
 end;
 {$ENDIF FPC}
-
-function KeysToShiftState(Keys: Word): TShiftState;
-begin
-  result := [];
-  if Keys and MK_SHIFT<>0 then Include(result, ssShift);
-  if Keys and MK_CONTROL<>0 then Include(result, ssCtrl);
-  if Keys and MK_LBUTTON<>0 then Include(result, ssLeft);
-  if Keys and MK_RBUTTON<>0 then Include(result, ssRight);
-  if Keys and MK_MBUTTON<>0 then Include(result, ssMiddle);
-  if LLCL_GetKeyState(VK_MENU) < 0 then Include(result, ssAlt);
-end;
-
-function KeyDataToShiftState(KeyData: integer): TShiftState;
-const
-  AltMask = $20000000;
-begin
-  result := [];
-  if LLCL_GetKeyState(VK_SHIFT)<0 then Include(result, ssShift);
-  if LLCL_GetKeyState(VK_CONTROL)<0 then Include(result, ssCtrl);
-  if KeyData and AltMask<>0 then Include(result, ssAlt);
-end;
 
 function TWCWndProc(hWnd: THandle; Msg: cardinal; awParam, alParam: NativeUInt): NativeUInt; stdcall;
 var obj: TObject;
@@ -553,7 +548,7 @@ begin
 end;
 
 procedure TVisualControl.ReadProperty(const PropName: string; Reader: TReader);
-const Properties: array[0..10] of PChar = (
+const Properties: array[0..11] of PChar = (
     'Left', 'Top',
     'Width', 'Height',
     'Color',
@@ -562,32 +557,34 @@ const Properties: array[0..10] of PChar = (
     'ParentFont',
     'Visible',
     'AutoSize',
+    'Alignment',
     'OnShow'
     );
 begin
   case StringIndex(PropName, Properties) of
-  0 : begin
-        fLeft := Reader.IntegerProperty;
-        UpdPosInGroup(USP_INGROUPLEFT);   // FPC only
-      end;
-  1 : begin
-        fTop := Reader.IntegerProperty;
-        UpdPosInGroup(USP_INGROUPTOP);    // FPC only
-      end;
-  2 : fWidth := Reader.IntegerProperty;
-  3 : fHeight := Reader.IntegerProperty;
-  4 :
-      begin
-        fColor := Reader.ColorProperty;
-        fHasDesignColor := true;
-      end;
-  5 : fTransparent := Reader.BooleanProperty;
-  6 : fCaption := Reader.StringProperty;
-  7 : fParentFont := Reader.BooleanProperty;
-  8 : fVisible := Reader.BooleanProperty;
-  9 : fAutoSize := Reader.BooleanProperty;
-  10: TMethod(EOnShow) := FindMethod(Reader);
-  else inherited;
+    0 : begin
+          fLeft := Reader.IntegerProperty;
+          UpdPosInGroup(USP_INGROUPLEFT);   // FPC only
+        end;
+    1 : begin
+          fTop := Reader.IntegerProperty;
+          UpdPosInGroup(USP_INGROUPTOP);    // FPC only
+        end;
+    2 : fWidth := Reader.IntegerProperty;
+    3 : fHeight := Reader.IntegerProperty;
+    4 :
+        begin
+          fColor := Reader.ColorProperty;
+          fHasDesignColor := true;
+        end;
+    5 : fTransparent := Reader.BooleanProperty;
+    6 : fCaption := Reader.StringProperty;
+    7 : fParentFont := Reader.BooleanProperty;
+    8 : fVisible := Reader.BooleanProperty;
+    9 : fAutoSize := Reader.BooleanProperty;
+    10: Reader.IdentProperty(fAlignment, TypeInfo(TAlignment));   // ('Alignment' no standard)
+    11: TMethod(EOnShow) := FindMethod(Reader);
+    else inherited;
   end;
 end;
 
@@ -770,7 +767,7 @@ end;
 procedure TGraphicControl.CheckCallPaint(AHandle: THandle);
 begin
   if Visible then
-    if LLCL_RectVisible(AHandle, ClientRect()) then   // Pb2 for CheckBox -> Not relevant
+    if LLCL_RectVisible(AHandle, ClientRect()) then   // Pb2 for GroupBox -> Not relevant
       begin
         Canvas.Handle := AHandle;
         Paint;
@@ -829,7 +826,7 @@ const Properties: array[0..9] of PChar = (
     );
 begin
   case StringIndex(PropName, Properties) of
-    0 : fCaption := Reader.StringProperty;
+    0 : fCaption := Reader.StringProperty;          // ('Text' no standard for TWinControl)
     1 : TabOrder := Reader.IntegerProperty;
     2 : fTabStop := Reader.BooleanProperty;
     3 : fEnabled := Reader.BooleanProperty;
@@ -839,7 +836,7 @@ begin
     7 : TMethod(EOnMouseDown) := FindMethod(Reader);
     8 : TMethod(EOnMouseUp)   := FindMethod(Reader);
     9 : TMethod(EOnDblClick)  := FindMethod(Reader);
-   else inherited;
+    else inherited;
   end;
 end;
 
@@ -904,8 +901,6 @@ begin
       Style := WS_CHILD;
       if Visible then
         Style := Style or WS_VISIBLE;
-      if fTabStop then
-        Style := Style or WS_TABSTOP;
       X := fLeft;
       Y := fTop;
       Width := fWidth;
@@ -927,7 +922,10 @@ begin
     fOldProc := TFNWndProc(LLCL_GetWindowLongPtr(fHandle, GWL_WNDPROC));
     LLCL_SetWindowLongPtr(fHandle, GWL_USERDATA, NativeUInt(self)); // faster than SetProp()
     LLCL_SetWindowLongPtr(fHandle, GWL_WNDPROC, NativeUInt(@TWCWndProc));
-    LLCL_SendMessage(fHandle, WM_SETFONT, WPARAM(Font.Handle), 0);
+    {$ifdef LLCL_OPT_NESTEDGROUPBOXWINXPFIX}
+    if not (ATType=ATTGroupBox) then
+    {$endif}
+      LLCL_SendMessage(fHandle, WM_SETFONT, WPARAM(Font.Handle), 0);
     SetEnabled(fEnabled);
   end;
 end;
@@ -982,35 +980,44 @@ begin
     EOnClick(self);
 end;
 
-procedure TWinControl.ColorCall(var Msg: TWMCtlColorStatic);
+function TWinControl.ColorCall(var Msg: TWMCtlColorStatic): boolean;
 var AColor: integer;
 var AHandle: THandle;
 var i: integer;
 begin
+  result := true;
   for i := 0 to fControls.Count-1 do
     begin
       if (Msg.ChildWnd=TWinControl(fControls[i]).Handle) or
         TWinControl(fControls[i]).ColorForSubCont(Msg.Msg, Msg.ChildWnd) then
         with TWinControl(fControls[i]) do
           begin
-            AColor := Font.Color;
-            if fParentFont and (fParent<>nil) then
-              AColor := fParent.Font.Color;
+            {$ifdef LLCL_OPT_NESTEDGROUPBOXWINXPFIX}
+            if ATType=ATTGroupBox then
+              LLCL_SelectObject(Msg.ChildDC, Font.Handle);
+            {$endif}
+            if fParentFont then
+              AColor := fParent.Font.Color    // (fParent<>nil)
+            else
+              AColor := Font.Color;
             LLCL_SetTextColor(Msg.ChildDC, AColor);
-            AColor := Color;
-            AHandle := Canvas.Brush.Handle;
             if (ATType in [ATTButton, ATTCheckBox, ATTRadioButton, ATTGroupBox, ATTTrackBar])
               or ((ATType=ATTStaticText) and Transparent) then
-              if fParent<>nil then
                 begin
-                  AColor := fParent.Color;
+                  AColor := fParent.Color;    // (fParent<>nil)
                   AHandle := fParent.Canvas.Brush.Handle;
-                end;
+                end
+            else
+              begin
+                AColor := Color;
+                AHandle := Canvas.Brush.Handle;
+              end;
             LLCL_SetBkColor(Msg.ChildDC, AColor);
             Msg.Result := LRESULT(AHandle);
             exit;
           end;
     end;
+  result := false;
 end;
 
 // Color for a sub control (ComboBox) ?
@@ -1031,9 +1038,25 @@ begin
   result := tkStandard;   // Standard (i.e. none), by default
 end;
 
-// Messages forwarded to the concerned child control (received in parent form - equivalent of CN_* messages)
-procedure TWinControl.ComponentNotif(var Msg: TMessage);
+// Call to forward messages to the concerned child control
+function TWinControl.ForwardChildMsg(var Msg: TMessage; WndChild: THandle): boolean;
+var ChildIndex: integer;
 begin
+  result := true;
+  if WndChild<>0 then
+    begin
+      ChildIndex := GetChildControl(WndChild);
+      // Forwards messages to the concerned child control
+      if (ChildIndex>=0) then
+        with TWinControl(fControls[ChildIndex]) do
+          result := ComponentNotif(Msg);
+    end;
+end;
+
+// Messages forwarded to the concerned child control (received in parent form - equivalent of CN_* messages)
+function TWinControl.ComponentNotif(var Msg: TMessage): boolean;
+begin
+  result := true;
 end;
 
 // Text size adjustement
@@ -1111,13 +1134,14 @@ begin
   if aControl<>nil then
     with aControl do
       if NewParentFocus(NewCallFocus, CurTabOrder, NewControl, true) then
-          NewControl.SetFocus();
+        NewControl.SetFocus();
 end;
 
 // Focus for new control in parent (Can be recursively called)
 function TWinControl.NewParentFocus(NewFocus: TNewFocusType; ContTabOrder: integer; var NewControl: TWinControl; UpperAllowed: boolean): boolean;
 var CurTabOrder, NewTabOrder, NewOverTabOrder: integer;
 var NewIndex, NewOverIndex: integer;
+var FirstCtrlCall: boolean;
 var i: integer;
 begin
   result := false;
@@ -1182,7 +1206,18 @@ begin
     with TWinControl(fControls[NewIndex]) do
       // Container (Groupbox) and tabulation, so search in lower level
       if ((NewFocus in [tftNextGroup, tftPrevGroup]) and (not fTabStop) and (ATType in [ATTGroupBox])) then
-        result := NewParentFocus(NewFocus, -1, NewControl, true)
+        begin
+          FirstCtrlCall := false;
+          if fTabTestFirstCtrl=nil then
+            begin
+              FirstCtrlCall := true;
+              fTabTestFirstCtrl := TWinControl(self.fControls[NewIndex]);
+            end;
+          if FirstCtrlCall or (fTabTestFirstCtrl<>TWinControl(self.fControls[NewIndex])) then
+            result := NewParentFocus(NewFocus, -1, NewControl, true);
+          if FirstCtrlCall then
+            fTabTestFirstCtrl := nil;
+        end
       else
         begin
           NewControl := TWinControl(self.fControls[NewIndex]);
@@ -1327,7 +1362,7 @@ end;
 function TWinControl.ForWMKeyDownUp(var Msg: TWMKey; EOnForKeyDownUp: TKeyEvent): boolean;
 begin
   if Assigned(EOnForKeyDownUp) then
-    EOnForKeyDownUp(self, Msg.CharCode, KeyDataToShiftState(Msg.KeyData));
+    EOnForKeyDownUp(self, Msg.CharCode, TShiftState(LLCLS_KeyDataToShiftState(Msg.KeyData)));
   result := (Msg.CharCode=0);
 end;
 
@@ -1370,18 +1405,6 @@ begin
           result := i;
           break;
         end;
-end;
-
-procedure TWinControl.ForWMHVScroll(var Msg: TWMHScroll);
-var ChildIndex: integer;
-begin
-  if Msg.ScrollBar<>0 then
-    begin
-      ChildIndex := GetChildControl(Msg.ScrollBar);
-      // Forwards scroll messages to the concerned child control
-      if (ChildIndex>=0) then
-        with TWinControl(fControls[ChildIndex]) do ComponentNotif(TMessage(Msg));
-    end;
 end;
 
 // Text size update (AutoSize)
@@ -1482,12 +1505,12 @@ begin
   fClicked := true;
   // OnMouseDown for control
   if Assigned(EOnMouseDown) then
-    EOnMouseDown(self, mbLeft, KeysToShiftState(Msg.Keys), Msg.XPos, Msg.YPos);
+    EOnMouseDown(self, mbLeft, TShiftState(LLCLS_KeysToShiftState(Msg.Keys)), Msg.XPos, Msg.YPos);
 end;
 
 procedure TWinControl.WMLButtonUp(var Msg: TWMLButtonUp);
 begin
-  if ATType<>ATTGroupBox then // Because of WM_NCHitTest message modification
+  if ATType<>ATTGroupBox then   // Because of WM_NCHitTest message modification
     inherited;
   // Note: Clicks for Windows button classes (Button, CheckBox, RadioButton and
   //   StaticText, but not GroupBox) are processed through BN_CLICKED messages
@@ -1498,7 +1521,7 @@ begin
   fClicked := false;
   // OnMouseUp for control
   if Assigned(EOnMouseUp) then
-    EOnMouseUp(self, mbLeft, KeysToShiftState(Msg.Keys), Msg.XPos, Msg.YPos);
+    EOnMouseUp(self, mbLeft, TShiftState(LLCLS_KeysToShiftState(Msg.Keys)), Msg.XPos, Msg.YPos);
 end;
 
 procedure TWinControl.WMRButtonDown(var Msg: TWMRButtonDown);
@@ -1506,7 +1529,7 @@ begin
   inherited;
   // OnMouseDown for control
   if Assigned(EOnMouseDown) then
-    EOnMouseDown(self, mbRight, KeysToShiftState(Msg.Keys), Msg.XPos, Msg.YPos);
+    EOnMouseDown(self, mbRight, TShiftState(LLCLS_KeysToShiftState(Msg.Keys)), Msg.XPos, Msg.YPos);
 end;
 
 procedure TWinControl.WMRButtonUp(var Msg: TWMRButtonUp);
@@ -1514,7 +1537,7 @@ begin
   inherited;
   // OnMouseUp only for control (no click for right button)
   if Assigned(EOnMouseUp) then
-    EOnMouseUp(self, mbRight, KeysToShiftState(Msg.Keys), Msg.XPos, Msg.YPos);
+    EOnMouseUp(self, mbRight, TShiftState(LLCLS_KeysToShiftState(Msg.Keys)), Msg.XPos, Msg.YPos);
 end;
 
 procedure TWinControl.WMLDblClick(var Msg: TWMLButtonDblClk);
@@ -1528,7 +1551,7 @@ begin
   //    (Order different for Delphi and FPC)
 {$IFDEF FPC}
   if Assigned(EOnMouseDown) then
-    EOnMouseDown(self, mbLeft, KeysToShiftState(Msg.Keys) + [ssDouble], Msg.XPos, Msg.YPos);
+    EOnMouseDown(self, mbLeft, TShiftState(LLCLS_KeysToShiftState(Msg.Keys)) + [ssDouble], Msg.XPos, Msg.YPos);
   if not (ATType in [ATTButton]) then
     if Assigned(EOnDblClick) then
       EOnDblClick(self);
@@ -1537,7 +1560,7 @@ begin
     if Assigned(EOnDblClick) then
       EOnDblClick(self);
   if Assigned(EOnMouseDown) then
-    EOnMouseDown(self, mbLeft, KeysToShiftState(Msg.Keys) + [ssDouble], Msg.XPos, Msg.YPos);
+    EOnMouseDown(self, mbLeft, TShiftState(LLCLS_KeysToShiftState(Msg.Keys)) + [ssDouble], Msg.XPos, Msg.YPos);
 {$ENDIF}
 end;
 
@@ -1546,7 +1569,7 @@ begin
   inherited;
   // Replaced by OnMouseDown for control (no double click for right button)
   if Assigned(EOnMouseDown) then
-    EOnMouseDown(self, mbRight, KeysToShiftState(Msg.Keys) + [ssDouble], Msg.XPos, Msg.YPos);
+    EOnMouseDown(self, mbRight, TShiftState(LLCLS_KeysToShiftState(Msg.Keys)) + [ssDouble], Msg.XPos, Msg.YPos);
 end;
 
 procedure TWinControl.WMChar(var Msg: TWMChar);
@@ -1610,7 +1633,7 @@ begin
           case Msg.CharCode of
           VK_TAB:                 // Tabulation
             begin
-              if ssShift in KeyDataToShiftState(Msg.KeyData) then
+              if ssShift in TShiftState(LLCLS_KeyDataToShiftState(Msg.KeyData)) then
                 TabFocusType := tftPrevGroup    // Shift tabulation (previous group control)
               else
                 TabFocusType := tftNextGroup;   // Tabulation (next group control)
@@ -1657,7 +1680,7 @@ end;
 procedure TWinControl.WMSysKeyDown(var Msg: TWMSysKeyDown);
 begin
   // UI indicators...
-  if ssAlt in KeyDataToShiftState(Msg.KeyData) then
+  if ssAlt in TShiftState(LLCLS_KeyDataToShiftState(Msg.KeyData)) then
     ClearUI(UITYPE_ACCELERATOR);
   if ForWMKeyDownUpForm(Msg, 0) then    // 0=Down
     exit;
@@ -1689,26 +1712,59 @@ begin
 end;
 
 procedure TWinControl.WMPaint(var Msg: TWMPaint);
-var PSDummy: TPaintStruct;
+var PSForm: TPaintStruct;
+{$ifdef LLCL_OPT_DOUBLEBUFF}
+var hSaveHDC: HDC;
+var hMemBMP, hSaveObj: HGDIOBJ;
+var FormRect: TRECT;
+{$endif}
 var i: integer;
 begin
-  if (fGraphics.Count>0) or (ATType=ATTCustomform) then    // Only if graphical controls are present, or possible OnPaint event
-    with Canvas do begin
-      if ATType=ATTCustomform then
-        Handle := LLCL_BeginPaint(self.fHandle, PSDummy)
-      else
-        Handle := LLCL_GetDC(self.fHandle);     // Pb1 for CheckBox -> Flickering
-      for i := 0 to fGraphics.Count-1 do
-        with TGraphicControl(fGraphics[i]) do
-          CheckCallPaint(Handle);
-      if ATType=ATTCustomform then
-        begin
-          TPCustomForm(self).CallOnPaint;       // Currently, only Forms can have this property
-          LLCL_EndPaint(self.fHandle, PSDummy);
-        end
-      else
-        LLCL_ReleaseDC(self.fHandle, Handle);
-    end;
+  if (fGraphics.Count>0) or (ATType=ATTCustomForm) then   // Only if graphical controls are present, or possible OnPaint event
+    with Canvas do
+      begin
+{$ifdef LLCL_OPT_DOUBLEBUFF}
+        hSaveHDC := 0; hMemBMP := 0; hSaveObj := 0;       // (to avoid compilation warning)
+{$endif}
+        if ATType=ATTCustomForm then
+          begin
+            Handle := LLCL_BeginPaint(self.fHandle, PSForm);
+{$ifdef LLCL_OPT_DOUBLEBUFF}
+            if fDoubleBuffered then
+              begin
+                FormRect := ClientRect();
+                hSaveHDC := Handle;
+                Handle := LLCL_CreateCompatibleDC(hSaveHDC);
+                hMemBMP := LLCL_CreateCompatibleBitmap(hSaveHDC, FormRect.Right - FormRect.Left, FormRect.Bottom - FormRect.Top);
+                hSaveObj := LLCL_SelectObject(Handle, hMemBMP);
+              end;
+{$endif}
+            LLCL_FillRect(Handle, PSForm.rcPaint, Brush.Handle);  // (See WM_ERASEBKGND)
+          end
+        else
+          Handle := LLCL_GetDC(self.fHandle);     // Pb1 for GroupBox -> Flickering
+        for i := 0 to fGraphics.Count-1 do
+          with TGraphicControl(fGraphics[i]) do
+            CheckCallPaint(Handle);
+        if ATType=ATTCustomForm then
+          begin
+            TPCustomForm(self).CallOnPaint;       // Currently, only Forms can have this property
+{$ifdef LLCL_OPT_DOUBLEBUFF}
+            if fDoubleBuffered then
+              begin
+                LLCL_BitBlt(hSaveHDC, PSForm.rcPaint.Left, PSForm.rcPaint.Top, PSForm.rcPaint.Right - PSForm.rcPaint.Left, PSForm.rcPaint.Bottom - PSForm.rcPaint.Top, Handle, PSForm.rcPaint.Left, PSForm.rcPaint.Top, SRCCOPY);
+                LLCL_SelectObject(Handle, hSaveObj);
+                LLCL_DeleteObject(hMemBMP);
+                LLCL_DeleteDC(Handle);
+              end;
+{$endif}
+            LLCL_EndPaint(self.fHandle, PSForm);
+            // (No inherited)
+            exit;
+          end
+        else
+          LLCL_ReleaseDC(self.fHandle, Handle);
+      end;
   inherited;
 end;
 
@@ -1725,49 +1781,47 @@ begin
 end;
 
 procedure TWinControl.WMEraseBkGnd(var Msg: TWMEraseBkGnd);
-var BrushColorSave: integer;
+var CtlOrParent: TWinControl;
 begin
   // Modified for some TWinControls
-  if (ATType in [ATTCustomForm, ATTGroupBox, ATTComboBox])
-    or ((ATType=ATTStaticText) and (not Transparent)) then
-    begin
-      with Canvas do begin
-        Handle := Msg.DC;
-        BrushColorSave := Brush.Color;
-        if ATType=ATTComboBox then    // (Only csSimple style concerned)
-          Brush.Color := self.Parent.Color;
-        FillRect(ClientRect());
-        if ATType=ATTComboBox then    // (Only csSimple style concerned)
-          Brush.Color := BrushColorSave;
-      end;
-      Msg.result := 1;
-    end
+  if ATType=ATTCustomForm then
+    Msg.Result := 1                   // (Done inside WM_PAINT)
   else
-    inherited;
+    if (ATType=ATTGroupBox) or ((ATType=ATTComboBox) and (TComboBox(self).Style=csSimple)) then
+      begin
+        if (ATType=ATTComboBox) then
+          CtlOrParent := fParent      // (fParent<>nil)
+        else
+          CtlOrParent := self;
+        LLCL_FillRect(Msg.DC, ClientRect(), CtlOrParent.Canvas.Brush.Handle);
+        Msg.Result := 1;
+      end
+    else
+      inherited;
 end;
 
 procedure TWinControl.WMColorStatic(var Msg: TWMCtlColorStatic);
 begin
-  inherited;
-  ColorCall(Msg);
+  if not ColorCall(Msg) then
+    inherited;
 end;
 
 procedure TWinControl.WMColorEdit(var Msg: TWMCtlColorEdit);
 begin
-  inherited;
-  ColorCall(Msg);
+  if not ColorCall(Msg) then
+    inherited;
 end;
 
 procedure TWinControl.WMColorListBox(var Msg: TWMCtlColorListBox);
 begin
-  inherited;
-  ColorCall(Msg);
+  if not ColorCall(Msg) then
+    inherited;
 end;
 
 procedure TWinControl.WMColorButton(var Msg: TWMCtlColorBtn);
 begin
-  inherited;
-  ColorCall(Msg);
+  if not ColorCall(Msg) then
+    inherited;
 end;
 
 procedure TWinControl.WMTimer(var Msg: TWMTimer);
@@ -1784,47 +1838,52 @@ end;
 
 procedure TWinControl.WMCommand(var Msg: TWMCommand);
 var ChildIndex: integer;
-var i: integer;
 begin
   inherited;
   if Msg.Ctl<>0 then
     begin
       ChildIndex := GetChildControl(Msg.Ctl);
-      case Msg.NotifyCode of
-      BN_CLICKED:
-        if ChildIndex>=0 then
-          begin
-            with TWinControl(fControls[ChildIndex]) do
-              begin
-                ClickCall(false, false);
-                // No more in click state
-                fClicked := false;
-              end;
-          end
-        else
-          for i := 0 to fControls.Count-1 do
-            with TWinControl(fControls[i]) do
-              if (ATType in [ATTGroupBox]) then
-                WMCommand(Msg);
-      end;
-      // Forwards WM_COMMAND messages to the concerned child control
-      if (Msg.Msg=WM_COMMAND) and (ChildIndex>=0) then
-        with TWinControl(fControls[ChildIndex]) do ComponentNotif(TMessage(Msg));
+      if ChildIndex>=0 then
+        with TWinControl(fControls[ChildIndex]) do
+          case Msg.NotifyCode of
+          BN_CLICKED:
+            begin
+              ClickCall(false, false);
+              // No more in click state
+              fClicked := false;
+            end;
+          else
+            ComponentNotif(TMessage(Msg));
+          end;
     end;
 end;
 
 procedure TWinControl.WMSize(var Msg: TWMSize);
 begin
   inherited;
-  fWidth  := Msg.Width;
-  fHeight := Msg.Height;
+  // Currently unused for other controls, because
+  //   only the client area is concerned
+  if ATType=ATTCustomForm then
+    begin
+      fWidth  := Msg.Width;
+      fHeight := Msg.Height;
+    end
+  else
+    // Forces redraw
+    if ATType=ATTStaticText then
+      Caption := fCaption;
 end;
 
 procedure TWinControl.WMMove(var Msg: TWMMove);
 begin
   inherited;
-  fLeft := Msg.XPos;
-  fTop  := Msg.YPos;
+  // Currently unused for other controls, because
+  //   only the client area is concerned
+  if ATType=ATTCustomForm then
+    begin
+      fLeft := Msg.XPos;
+      fTop  := Msg.YPos;
+    end;
 end;
 
 procedure TWinControl.WMNCHitTest(var Msg: TWMNCHitTest);
@@ -1844,18 +1903,24 @@ end;
 procedure TWinControl.WMHScroll(var Msg: TWMHScroll);
 begin
   inherited;
-  ForWMHVScroll(Msg);
+  ForwardChildMsg(TMessage(Msg), Msg.ScrollBar);
 end;
 
 procedure TWinControl.WMVScroll(var Msg: TWMVScroll);
 begin
   inherited;
-  ForWMHVScroll(TWMHScroll(Msg));
+  ForwardChildMsg(TMessage(Msg), Msg.ScrollBar);
+end;
+
+procedure TWinControl.WMNotify(var Msg: TWMNotify);
+begin
+  if ForwardChildMsg(TMessage(Msg), Msg.NMHdr^.hwndFrom) then
+    inherited;
 end;
 
 { TMouse }
 
-function TMouse.GetCursorPos: TPoint;
+function TMouse.GetCursorPos(): TPoint;
 begin
   LLCL_GetCursorPos(result);
 end;

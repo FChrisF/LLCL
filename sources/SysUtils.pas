@@ -12,19 +12,23 @@ unit SysUtils;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * Some (irrelevant) Kylix code removed
+    * StrToInt64/StrToInt64Def/TryStrToInt64 added
+    * TryStrToDate/TryStrToTime added
    Version 1.00:
-  * FPC/Lazarus part doesn't use any asm code
-  * CheckWin32Version added
-  * Warning: Kylix compatibility broken
+    * FPC/Lazarus part doesn't use any asm code
+    * CheckWin32Version added
+    * Warning: Kylix compatibility broken
 }
 
 // Original notes from LVCL
@@ -283,6 +287,9 @@ function  IntToHex(Value: int64; Digits: integer): string; overload;
 function  StrToInt(const S: string): integer;
 function  StrToIntDef(const S: string; Default: integer): integer;
 function  TryStrToInt(const S: string; out Value: integer): boolean;
+function  StrToInt64(const S: string): int64;
+function  StrToInt64Def(const S: string; Default: int64): int64;
+function  TryStrToInt64(const S: string; out Value: int64): boolean;
 function  GUIDToString(const GUID: TGUID): string;
 
 {$if (not Defined(FPC)) or (not Defined(UNICODE))}  // Delphi, or FPC/Lazarus non Unicode
@@ -365,6 +372,8 @@ function  TrySystemTimeToDateTime(const SystemTime: TSystemTime; out DateTime: T
 function  DateTimeToStr(const DateTime: TDateTime): string;
 function  DateToStr(const DateTime: TDateTime): string;
 function  TimeToStr(const DateTime: TDateTime): string;
+function  TryStrToDate(const S: string; out Value: TDateTime): boolean;
+function  TryStrToTime(const S: string; out Value: TDateTime): boolean;
 function  TryStrToDateTime(const S: string; out Value: TDateTime): boolean;
 
 function  FileCreate(const FileName: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}string{$ENDIF}): THandle; {$IFDEF LLCL_FPC_UNISYS}overload;{$ENDIF}
@@ -491,6 +500,9 @@ uses
 
 const
   HexChars: array[0..15] of Char = '0123456789ABCDEF';
+  SYSLLCL_TIME_SEP      = ':';
+  SYSLLCL_DATE_SEP      = '/';
+  SYSLLCL_DATETIME_SEP  = ' ';
 
 {$IFNDEF FPC}
   // our customs SysUtils.pas (normal and LVCL) contains the same array
@@ -529,7 +541,7 @@ procedure FindSearchRecUniToRaw(const F: TUnicodeSearchRec; var FF: TRawByteSear
 {$ifdef LLCL_OPT_EXCEPTIONS}
 {$IFDEF FPC}
 procedure ExceptHandler(ExceptObject: TObject; ExceptAddr: pointer; FrameCount: longint; Frames: PPointer); forward;
-procedure ErrorHandler(ErrorCode: integer; ErrorAddr, Frame : pointer); forward;
+procedure ErrorHandler(ErrorCode: integer; ErrorAddr, Frame: pointer); forward;
 procedure AssertErrorHandler(const aMessage, aFilename: shortstring; aLineNumber: longint; aErrorAddr: pointer); forward;
 {$ELSE FPC}
 procedure ExceptHandler(ExceptObject: TObject; ExceptAddr: pointer); far; forward;
@@ -625,7 +637,7 @@ begin
   end;
 end;
 
-function  IntToStr(Value : integer): string;
+function  IntToStr(Value: integer): string;
 {$if Defined(UNICODE) or Defined(FPC)}
 begin
   Str(Value, result);
@@ -1008,6 +1020,24 @@ begin
 end;
 
 function  TryStrToInt(const S: string; out Value: integer): boolean;
+var E: integer;
+begin
+  Val(S, Value, E);
+  result := (E=0);
+end;
+
+function  StrToInt64(const S: string): int64;
+begin
+  result := StrToInt64Def(S, 0);
+end;
+
+function  StrToInt64Def(const S: string; Default: int64): int64;
+begin
+  if not TryStrToInt64(S, result) then
+    result := Default;
+end;
+
+function  TryStrToInt64(const S: string; out Value: int64): boolean;
 var E: integer;
 begin
   Val(S, Value, E);
@@ -2037,41 +2067,33 @@ end;
 function  AnsiCompareText(const S1, S2: string): integer;
 begin   // (LVCL uses also SORT_STRINGSORT)
   result := {$IFDEF LLCL_FPC_SYSRTL}LLCLSys_CompareString{$ELSE}LLCLS_CompareString{$ENDIF}
-      (LOCALE_USER_DEFAULT, NORM_IGNORECASE, S1, length(S1), S2, length(S2)) - 2;
+      (LOCALE_USER_DEFAULT, NORM_IGNORECASE, S1, S2) - 2;
 end;
 
 function  AnsiSameText(const S1, S2: string): boolean;
 begin
- result := (AnsiCompareText(S1, S2)=0);
+  result := (AnsiCompareText(S1, S2)=0);
 end;
 
 function  AnsiCompareStr(const S1, S2: string): integer;
 begin   // (LVCL uses also SORT_STRINGSORT)
   result := {$IFDEF LLCL_FPC_SYSRTL}LLCLSys_CompareString{$ELSE}LLCLS_CompareString{$ENDIF}
-      (LOCALE_USER_DEFAULT, 0, S1, length(S1), S2, length(S2)) - 2;
+      (LOCALE_USER_DEFAULT, 0, S1, S2) - 2;
 end;
 
 function  AnsiSameStr(const S1, S2: string): boolean;
 begin
- result := (AnsiCompareStr(S1, S2)=0);
+  result := (AnsiCompareStr(S1, S2)=0);
 end;
 
 function  AnsiUpperCase(const S: string): string;
 begin
-{$ifdef MSWindows}
   result := {$IFDEF LLCL_FPC_SYSRTL}LLCLSys_CharUpperBuff{$ELSE}LLCLS_CharUpperBuff{$ENDIF}(S);
-{$else}
-  result := WideUpperCase(S);
-{$endif}
 end;
 
 function  AnsiLowerCase(const S: string): string;
 begin
-{$ifdef MSWindows}
   result := {$IFDEF LLCL_FPC_SYSRTL}LLCLSys_CharLowerBuff{$ELSE}LLCLS_CharLowerBuff{$ENDIF}(S);
-{$else}
-  result := WideLowerCase(S);
-{$endif}
 end;
 
 function  WideCompareText(const S1, S2: widestring): integer;
@@ -2081,7 +2103,7 @@ end;
 
 function  WideSameText(const S1, S2: widestring): boolean;
 begin   // (LVCL uses also SORT_STRINGSORT)
- result := (WideCompareText(S1, S2)=0);
+  result := (WideCompareText(S1, S2)=0);
 end;
 
 function  WideCompareStr(const S1, S2: widestring): integer;
@@ -2091,36 +2113,24 @@ end;
 
 function  WideSameStr(const S1, S2: widestring): boolean;
 begin
- result := (WideCompareStr(S1, S2)=0);
+  result := (WideCompareStr(S1, S2)=0);
 end;
 
 function  WideUpperCase(const S: widestring): widestring;
-{$ifdef MSWindows}
 var Len: cardinal;
 begin
   Len := length(S);
   SetString(result, PWideChar(S), Len);
   if Len > 0 then LLCL_CharUpperBuffW(pointer(result), Len);
 end;
-{$else}
-begin
-  result := WideUpperCase(S);
-end;
-{$endif}
 
 function  WideLowerCase(const S: widestring): widestring;
-{$ifdef MSWindows}
 var Len: cardinal;
 begin
   Len := length(S);
   SetString(result, PWideChar(S), Len);
   if Len > 0 then LLCL_CharLowerBuffW(pointer(result), Len);
 end;
-{$else}
-begin
-  result := WideLowerCase(S);
-end;
-{$endif}
 
 procedure DecodeDate({$IFDEF FPC}{$ELSE}const {$ENDIF}DateTime: TDateTime; var Year, Month, Day: word);
 var J: integer;
@@ -2366,7 +2376,7 @@ begin
   if BaseDate>=0 then
     result := BaseDate + PlusTime
   else
-    result := BaseDate + PlusTime;
+    result := BaseDate - PlusTime;
 end;
 
 function  SysCurrDT(WithDate, WithTime: boolean): TDateTime;
@@ -2417,15 +2427,15 @@ begin
   result := '';
   if WithDate then
     begin
-      DecodeDate(DateTime, Y,M,D);
-      result := result+Format('%.4d',[Y])+'/'+Format('%.2d',[M])+'/'+Format('%.2d',[D]);
+      DecodeDate(DateTime, Y, M, D);
+      result := result + Format('%.4d', [Y]) + SYSLLCL_DATE_SEP + Format('%.2d', [M]) + SYSLLCL_DATE_SEP + Format('%.2d', [D]);
     end;
   if WithDate and WithTime then
-    result := result+' ';
+    result := result + SYSLLCL_DATETIME_SEP;
   if WithTime then
     begin
-      DecodeTime(DateTime, H,MI,S,MS);
-      result := result+Format('%.2d',[H])+':'+Format('%.2d',[MI])+':'+Format('%.2d',[S]);
+      DecodeTime(DateTime, H, MI, S, MS);
+      result := result + Format('%.2d', [H]) + SYSLLCL_TIME_SEP + Format('%.2d', [MI]) + SYSLLCL_TIME_SEP + Format('%.2d', [S]);
     end;
 end;
 
@@ -2481,26 +2491,45 @@ begin
 end;
 
 // Only for 'YYYY/MM/DD hh:mm:ss' (see Date/Time To Str functions)
-function  TryStrToDateTime(const S: string; out Value: TDateTime): boolean;
-var Y,M,D, H,MI,SS: cardinal;
+
+function  TryStrToDate(const S: string; out Value: TDateTime): boolean;
+var Y, M, D: cardinal;
 begin
-  if length(S)<>19 then
-    begin
-      result := false;
-      exit;
-    end;
+  result := false;
+  if length(S)<>10 then exit;
   Y := ord(S[1])*1000+ord(S[2])*100+ord(S[3])*10+ord(S[4])-(48+480+4800+48000);
   M := ord(S[6])*10+ord(S[7])-(48+480);
   D := ord(S[9])*10+ord(S[10])-(48+480);
-  H := ord(S[12])*10+ord(S[13])-(48+480);
-  MI := ord(S[15])*10+ord(S[16])-(48+480);
-  SS := ord(S[18])*10+ord(S[19])-(48+480);
-  result := (Y<=2100) and (Y>=1980) and (M in [1..12]) and (D<=MonthDays[true][M]) and
-    (D<>0) and (H<=23) and (MI<=59) and (SS<=59);
+  // (Reduced checks on year)
+  result := (Y<=3000) and (Y>=1) and (M in [1..12]) and (D<=MonthDays[true][M]) and (D<>0);
+  if result then
+    Value := EncodeDate(Y, M, D);
+end;
+
+function  TryStrToTime(const S: string; out Value: TDateTime): boolean;
+var HH, MM, SS: cardinal;
+begin
+  result := false;
+  if length(S)<>8 then exit;
+  HH := ord(S[1])*10+ord(S[2])-(48+480);
+  MM := ord(S[4])*10+ord(S[5])-(48+480);
+  SS := ord(S[7])*10+ord(S[8])-(48+480);
+  result := (HH<=23) and (MM<=59) and (SS<=59);
+  if result then
+    Value := EncodeTime(HH, MM, SS, 0);
+end;
+
+function  TryStrToDateTime(const S: string; out Value: TDateTime): boolean;
+var TimeValue: TDateTime;
+begin
+  result := false;
+  if length(S)<>19 then exit;
+  result := TryStrToDate(Copy(S, 1, 10), Value);
   if result then
     begin
-      Value := EncodeDate(Y, M, D);
-      Value := SysAddDatePlusTime(Value, EncodeTime(H, MI, SS, 0));
+      result := TryStrToTime(Copy(S, 12, 8), TimeValue);
+      if result then
+        SysAddDatePlusTime(Value, TimeValue);
     end;
 end;
 
@@ -3571,7 +3600,7 @@ begin
 end;
 
 {$IFDEF FPC}
-procedure ErrorHandler(ErrorCode: integer; ErrorAddr, Frame : pointer);
+procedure ErrorHandler(ErrorCode: integer; ErrorAddr, Frame: pointer);
 {$ELSE FPC}
 procedure ErrorHandler(ErrorCode: integer; ErrorAddr: pointer);
 {$ENDIF FPC}

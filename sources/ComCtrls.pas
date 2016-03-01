@@ -12,15 +12,18 @@ unit ComCtrls;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * TWinControl: notifications for child controls modified
+    * TTrackBar: 'Orientation' and 'TickStyle' properties now accessible (design time only)
    Version 1.00:
     * File creation.
     * TProgressBar implemented
@@ -59,7 +62,7 @@ type
     procedure SetStep(Value: integer);
   protected
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
   public
     constructor Create(AOwner: TComponent); override;
@@ -97,9 +100,9 @@ type
     procedure SetPageSize(Value: integer);
   protected
     procedure CreateHandle; override;
-    procedure CreateParams(var Params : TCreateParams); override;
+    procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
-    procedure ComponentNotif(var Msg: TMessage); override;
+    function  ComponentNotif(var Msg: TMessage): boolean; override;
   public
     constructor Create(AOwner: TComponent); override;
     property  Min: integer read fMin write SetMin;
@@ -108,6 +111,8 @@ type
     property  Frequency: integer read fFrequency write SetFrequency;
     property  LineSize: integer read fLineSize write SetLineSize;
     property  PageSize: integer read fPageSize write SetPageSize;
+    property  Orientation: TOrientation read fOrientation write fOrientation; // Run-time modification ignored; write present only for dynamical control creation purpose
+    property  TickStyle: TTickStyle read fTickStyle write fTickStyle;         // Run-time modification ignored; write present only for dynamical control creation purpose
     property  OnChange: TNotifyEvent read EOnChange write EOnChange;
   end;
 
@@ -147,7 +152,7 @@ end;
 
 { TProgressBar }
 
-constructor TProgressBar.Create(AOwner:TComponent);
+constructor TProgressBar.Create(AOwner: TComponent);
 begin
   inherited;
   ATType := ATTProgressBar;
@@ -166,7 +171,7 @@ begin
   SetStep(fStep);
 end;
 
-procedure TProgressBar.CreateParams(var Params : TCreateParams);
+procedure TProgressBar.CreateParams(var Params: TCreateParams);
 const PROGRESS_CLASS = 'msctls_progress32';
 begin
   inherited;
@@ -237,7 +242,7 @@ end;
 
 { TTrackBar }
 
-constructor TTrackBar.Create(AOwner:TComponent);
+constructor TTrackBar.Create(AOwner: TComponent);
 begin
   inherited;
   ATType := ATTTrackBar;
@@ -261,7 +266,7 @@ begin
   fOnChangeOK := true;    // OnChange is now OK for being activated
 end;
 
-procedure TTrackBar.CreateParams(var Params : TCreateParams);
+procedure TTrackBar.CreateParams(var Params: TCreateParams);
 const TRACKBAR_CLASS = 'msctls_trackbar32';
 begin
   inherited;
@@ -347,9 +352,9 @@ begin
 end;
 
 // Scroll messages coming from form
-procedure TTrackBar.ComponentNotif(var Msg: TMessage);
+function TTrackBar.ComponentNotif(var Msg: TMessage): boolean;
 begin
-  inherited;
+  result := inherited ComponentNotif(Msg);
   case Msg.Msg of
   WM_HSCROLL, WM_VSCROLL:
     if fOnChangeOK and Assigned(EOnChange) then

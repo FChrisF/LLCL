@@ -12,15 +12,18 @@ unit Dialogs;
   License, v. 2.0. If a copy of the MPL was not distributed with this
   file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
-    This Source Code Form is “Incompatible With Secondary Licenses”,
+    This Source Code Form is "Incompatible With Secondary Licenses",
   as defined by the Mozilla Public License, v. 2.0.
 
-  Copyright (c) 2015 ChrisF
+  Copyright (c) 2015-2016 ChrisF
 
   Based upon the Very LIGHT VCL (LVCL):
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.01:
+    * SelectDirectory added (for FPC/Lazarus)
+    * TSelectDirectoryDialog added for FPC/Lazarus (not enabled by default - see LLCL_OPT_USESELECTDIRECTORYDIALOG in LLCLOptions.inc)
    Version 1.00:
     * Application.BiDiMode used for ShowMessage (through Application.MessageBox)
     * TOpenDialog and TSaveDialog implemented
@@ -119,9 +122,20 @@ type
   public
     constructor Create(AOwner: TComponent); override;
   end;
-{$endif}
+
+{$ifdef LLCL_OPT_USESELECTDIRECTORYDIALOG}
+  TSelectDirectoryDialog = class(TOpenDialog)
+  public
+    constructor Create(AOwner: TComponent); override;
+    function Execute: boolean; override;
+  end;
+{$endif LLCL_OPT_USESELECTDIRECTORYDIALOG}
+{$endif LLCL_OPT_USEDIALOG}
 
 procedure ShowMessage(const Msg: string);
+{$IFDEF FPC}    // SelectDirectory is in FileCtrl.pas for Delphi
+function  SelectDirectory(const Caption: string; const InitialDirectory: string; out Directory: string): Boolean; overload;
+{$ENDIF FPC}
 
 //------------------------------------------------------------------------------
 
@@ -129,9 +143,10 @@ implementation
 
 uses
 {$ifdef LLCL_OPT_USEDIALOG}
-  {$IFDEF FPC}{$ELSE}CommDlg,{$ENDIF}
+  {$IFDEF FPC}FileCtrl,{$ELSE}CommDlg,{$ENDIF}
   Forms, SysUtils;
 {$else}
+  {$IFDEF FPC}FileCtrl,{$ENDIF}
   Forms;
 {$endif}
 
@@ -170,6 +185,13 @@ procedure ShowMessage(const Msg: string);
 begin
   Application.MessageBox(@Msg[1], @Application.Title[1], MB_OK or MB_ICONMASK);
 end;
+
+{$IFDEF FPC}
+function  SelectDirectory(const Caption: string; const InitialDirectory: string; out Directory: string): Boolean;
+begin
+  result := FC_SelectDirectory(Caption, InitialDirectory, [sdNewFolder, sdShowEdit, sdNewUI], Directory);
+end;
+{$ENDIF FPC}
 
 {$ifdef LLCL_OPT_USEDIALOG}
 //------------------------------------------------------------------------------
@@ -292,13 +314,33 @@ begin
   inherited;
   ATType := ATTSaveDialog;
 end;
-{$endif}
+
+{$ifdef LLCL_OPT_USESELECTDIRECTORYDIALOG}
+{ TSelectDirectoryDialog }
+
+constructor TSelectDirectoryDialog.Create(AOwner: TComponent);
+begin
+  inherited;
+  ATType := ATTSelectDirectoryDialog;
+end;
+
+function TSelectDirectoryDialog.Execute: boolean;
+var sdOptions: TSelectDirExtOpts;
+begin
+  if ofOldStyleDialog in Options then
+    sdOptions := []
+  else
+    sdOptions := [sdNewFolder, sdShowEdit, sdNewUI];
+  result := FC_SelectDirectory(fTitle, fInitialDir, sdOptions, fFileName);
+end;
+{$endif LLCL_OPT_USESELECTDIRECTORYDIALOG}
 
 //------------------------------------------------------------------------------
+{$endif}
 
 {$ifdef LLCL_OPT_USEDIALOG}
 initialization
-  RegisterClasses([TOpenDialog, TSaveDialog]);
+  RegisterClasses([TOpenDialog, TSaveDialog {$ifdef LLCL_OPT_USESELECTDIRECTORYDIALOG}, TSelectDirectoryDialog{$endif}]);
 {$endif}
 
 {$IFDEF FPC}
