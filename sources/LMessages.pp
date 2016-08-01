@@ -21,6 +21,7 @@ unit LMessages;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.02:
    Version 1.01:
     * TWMMove, TWMNotify, TWMSysCommand added
    Version 1.00:

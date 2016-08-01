@@ -21,6 +21,8 @@ unit ClipBrd;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.02:
+    * TClipboard: SetAsText fix
    Version 1.01:
     * File creation.
     * TClipboard/Clipboard implemented (only for text)
@@ -116,11 +118,12 @@ begin
 end;
 
 procedure TClipboard.SetAsText(const Value: string);
-var lpText: pointer;
+var pText: pointer;
 var len: cardinal;
 begin
-  lpText := LLCLS_CLPB_SetTextPtr(Value, len);
-  SetBuffer(LLCLS_CLPB_GetTextFormat(), lpText, len);
+  pText := LLCLS_CLPB_SetTextPtr(Value, len);
+  SetBuffer(LLCLS_CLPB_GetTextFormat(), pText, len);
+  FreeMem(pText);
 end;
 
 procedure TClipboard.SetBuffer(Format: cardinal; Buffer: pointer; Size: integer);
