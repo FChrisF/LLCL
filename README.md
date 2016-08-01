@@ -44,6 +44,23 @@ version 2.0. See "LICENSE.txt".
 
 ## LLCL ChangeLog
 
+* [Version 1.02] (https://github.com/FChrisF/LLCL/releases/tag/v1.0.2):
+
+  Main changes and additions:
+  - TRadioGroup control added (not enabled by default),
+  - TRegistry class added (Registry.pas),
+  - TClipboard: SetAsText bug fix,
+  - TStringGrid: ColCount and RowCount bug fix,
+  - bug fixes when application was starting and closing,
+  - bug fixes and non standard ItemStrings property removed
+    for internal TCustomBox class,
+  - TForm: ShowModal bug fix (with several modal forms),
+  - DeleteFile and RenameFile added (SysUtils), and also
+    DeleteFileUTF8 and RenameFileUTF8 (FileUtil/LazFileUtils),
+  - internal TMemoLines et TBoxStrings classes (for TMemo and
+    TComboBox/TListBox controls) modified for a better LCL/VCL
+    compatibility (data accessing).
+
 * [Version 1.01] (https://github.com/FChrisF/LLCL/releases/tag/v1.0.1):
 
   Main changes and additions:

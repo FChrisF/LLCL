@@ -21,6 +21,7 @@ unit Classes;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
+   Version 1.02:
    Version 1.01:
     * TReader: ReadStringInts (and StringIntProperty), ReadIntArray added
    Version 1.00:
@@ -154,7 +155,7 @@ type
   TStringList = class
   private
     fCount: integer;
-    fCapacity : integer;
+    fCapacity: integer;
     fListStr: array of string;
     // fListObj[] is allocated only if objects are used (not nil)
     fListObj: array of TObject;
@@ -500,8 +501,8 @@ type
 
   PTypeInfo = ^TTypeInfo;
   TTypeInfo = record
-    Kind : TTypeKind;
-    Name : shortstring;
+    Kind: TTypeKind;
+    Name: shortstring;
     // here the type data follows as TTypeData record
   end;
 
@@ -516,15 +517,15 @@ type
 const
   BooleanIdents: array[Boolean] of String = ('False', 'True');
 
-function GetTypeData(ptrTypeInfo: PTypeInfo) : PTypeData; forward;
-function GetEnumNameValue(ptrTypeInfo: PTypeInfo; const Name: string): integer; forward;
-function GetColorFromIdent(Ident: PChar): integer; forward;
-function ClassSameText(const S1, S2: string): boolean; forward;
+function  GetTypeData(ptrTypeInfo: PTypeInfo): PTypeData; forward;
+function  GetEnumNameValue(ptrTypeInfo: PTypeInfo; const Name: string): integer; forward;
+function  GetColorFromIdent(Ident: PChar): integer; forward;
+function  ClassSameText(const S1, S2: string): boolean; forward;
 
 {$ifdef MSWindows}
 var
   RegisteredClasses: TList = nil;
-function CreateComponent(const AClassName: shortstring; AOwner: TComponent): TComponent; forward;
+function  CreateComponent(const AClassName: shortstring; AOwner: TComponent): TComponent; forward;
 {$endif}
 
 // Workaround for Unicode FPC when using the standard SysUtils unit
@@ -534,7 +535,6 @@ function CreateComponent(const AClassName: shortstring; AOwner: TComponent): TCo
 {$ifdef Def_FPC_StdSys}
 function  Class_IntToStr(Value: integer): string; forward;
 {$endif}
-
 
 //------------------------------------------------------------------------------
 
@@ -701,7 +701,7 @@ begin
 end;
 
 {$ifdef Def_FPC_StdSys}
-function  Class_IntToStr(Value: integer): string;
+function Class_IntToStr(Value: integer): string;
 begin
   Str(Value, result);
 end;
@@ -1000,7 +1000,7 @@ begin
     P := PChar(pointer(fListStr[i]))+j+L;
     while P^=' ' do Inc(P); // trim left value
     if StrIComp(P,pointer(Value))=0 then begin
-      result := copy(fListStr[i], 1, j-1);
+      result := Copy(fListStr[i], 1, j-1);
       exit;
     end;
   end;
@@ -1675,13 +1675,12 @@ var {$ifdef debug}
   i: integer;
   SubProp: TPersistent;
 begin
-  if self=nil then exit;
   i := pos('.', PropName);
   if i > 0 then
     SubProp := SubProperty(Copy(PropName, 1, i-1))
   else SubProp := nil;
   if SubProp<>nil then
-    SubProp.ReadProperty(Copy(PropName, i+1, 200),Reader)
+    SubProp.ReadProperty(Copy(PropName, i+1, 200), Reader)
   else
     with Reader do begin
 {$ifdef debug}
@@ -1792,7 +1791,7 @@ begin
   result := nil;
 end;
 
-function  GetClass(const AClassName: string): TPersistentClass;
+function GetClass(const AClassName: string): TPersistentClass;
 begin
   result := GetClass(shortstring(AClassName));
 end;
@@ -1890,7 +1889,7 @@ end;
 
 function TComponent.GetComponentCount: integer;
 begin
-  if (self=nil) or (fComponents=nil) then
+  if fComponents=nil then
     result := 0
   else
     result := fComponents.Count;
@@ -1915,8 +1914,6 @@ end;
 
 procedure TMemoryStream.SetCapacity(Value: integer);
 begin
-  if self=nil then
-    exit;
   fCapacity := Value;
   ReallocMem(fMemory,fCapacity);
   if fPosition>=fCapacity then // adjust Position if truncated
@@ -2105,7 +2102,7 @@ end;
 
 function TCustomMemoryStream.Read(var Buffer; Count: integer): integer;
 begin
-  if (self<>nil) and (Memory<>nil) then
+  if Memory<>nil then
   if (FPosition>=0) and (Count>0) then begin
     result := FSize - FPosition;
     if result>0 then begin
@@ -2120,7 +2117,7 @@ end;
 
 procedure TCustomMemoryStream.SaveToStream(aStream: TStream);
 begin
-  if (self<>nil) and (FSize<>0) and (aStream<>nil) and (Memory<>nil) then
+  if (FSize<>0) and (aStream<>nil) and (Memory<>nil) then
     aStream.Write(Memory^, FSize);
 end;
 
