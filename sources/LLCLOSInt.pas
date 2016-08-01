@@ -21,11 +21,6 @@ unit LLCLOSInt;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
-    * Registry functions added
-    * Clipboard write text fix
-    * SysUtils DeleteFile and RenameFile support functions added
-    * Support for TRadioGroup
    Version 1.01:
     * Transparent bitmap functions added
     * ListView functions added
@@ -156,8 +151,8 @@ uses
 {$ENDIF FPC}
 
 // Message strings used in LLCL (mostly error/exception and debug)
-//   Though most of them are not supposed to be seen by the final user,
-//   it's possible to use an external include file for translation purposes
+//   Though they are not supposed to be seen by the final user, it's
+//   possible to use an external include file for translation purposes
 
 // Constant message strings (language adaptation)
 //{$DEFINE LLCL_STR_USE_EXTINC}
@@ -195,10 +190,6 @@ const
   LLCL_STR_SYSU_OSERROR                 = 'OSError %d (%s)';
   LLCL_STR_SYSU_ERROR                   = 'Error %d at %x';
   LLCL_STR_SYSU_ASSERTERROR             = '%s in %s (%d) at %x';
-  LLCL_STR_REGI_CREATEKEYERR            = 'Error create key %s';
-  LLCL_STR_REGI_READDATAERR             = 'Error read data %s';
-  LLCL_STR_REGI_WRITEDATAERR            = 'Error write data %s';
-  LLCL_STR_EXCT_RGROUPCOLUMN            = 'Wrong columns value %d';
 {$ENDIF}
 
 const
@@ -207,13 +198,13 @@ const
   LLCL_WINXP_MAJ    = 5; LLCL_WINXP_MIN    = 01;
   LLCL_WINVISTA_MAJ = 6; LLCL_WINVISTA_MIN = 00;
 
-// Structure redefinitions
+// Structure Redefinitions
 type
   // Identical to TShiftState in Classes.pas (avoid to include Classes)
   LLCL_TShiftState =
     set of (ssShift, ssAlt, ssCtrl, ssLeft, ssRight, ssMiddle, ssDouble);
 
-// API redefinitions
+// API Redefinitions
 {$IFDEF FPC}
 type
   TFNTimerProc = TIMERPROC;
@@ -478,7 +469,6 @@ const
   CSHELL32          = 'shell32.dll';
   COLE32            = 'ole32.dll';
   CVERSION          = 'version.dll';
-  CADVAPI32         = 'advapi32.dll';
 
 function  GetVersionExW(var lpVersionInformation: TOSVersionInfoW): BOOL; stdcall; external CKERNEL32 name 'GetVersionExW';
 function  GetModuleHandleW(lpModuleName: LPCWSTR): HMODULE; stdcall; external CKERNEL32 name 'GetModuleHandleW';
@@ -499,8 +489,6 @@ function  GetDiskFreeSpaceExW(lpDirectoryName: LPCWSTR; lpFreeBytesAvailableToCa
 function  FormatMessageW(dwFlags: DWORD; lpSource: Pointer; dwMessageId: DWORD; dwLanguageId: DWORD; lpBuffer: LPCWSTR; nSize: DWORD; Arguments: Pointer): DWORD; stdcall; external CKERNEL32 name 'FormatMessageW';
 function  CompareStringW(Locale: LCID; dwCmpFlags: DWORD; lpString1: LPCWSTR; cchCount1: Integer; lpString2: LPCWSTR; cchCount2: Integer): Integer; stdcall; external CKERNEL32 name 'CompareStringW';
 function  LoadLibraryW(lpLibFileName: LPCWSTR): HMODULE; stdcall; external CKERNEL32 name 'LoadLibraryW';
-function  DeleteFileW(lpFileName: LPCWSTR): BOOL; stdcall; external CKERNEL32 name 'DeleteFileW';
-function  MoveFileW(lpExistingFileName: LPCWSTR; lpNewFileName: LPCWSTR): BOOL; stdcall; external CKERNEL32 name 'MoveFileW';
 function  CreateEventW(lpEventAttributes: LPSECURITY_ATTRIBUTES; bManualReset: BOOL; bInitialState: BOOL; lpName: LPCWSTR): HANDLE; stdcall; external CKERNEL32 name 'CreateEventW';
 function  GetPrivateProfileStringW(lpAppName, lpKeyName, lpDefault: LPCWSTR; lpReturnedString: LPWSTR; nSize: DWORD; lpFileName: LPCWSTR): DWORD; stdcall; external CKERNEL32 name 'GetPrivateProfileStringW';
 function  CharToOemW(lpszSrc: LPCWSTR; lpszDst: LPCSTR): BOOL; stdcall; external CUSER32 name 'CharToOemW';
@@ -548,15 +536,6 @@ function  GetSaveFileNameW(var OpenFile: TOpenFilenameW): BOOL; stdcall; externa
 function  GetFileVersionInfoSizeW(lptstrFilename: LPCWSTR; var lpdwHandle: DWORD): DWORD; stdcall; external CVERSION name 'GetFileVersionInfoSizeW';
 function  GetFileVersionInfoW(lptstrFilename: LPCWSTR; dwHandle, dwLen: DWORD; lpData: Pointer): BOOL; stdcall; external CVERSION name 'GetFileVersionInfoW';
 function  VerQueryValueW(pBlock: Pointer; lpSubBlock: LPCWSTR; var lplpBuffer: Pointer; var puLen: UINT): BOOL; stdcall; external CVERSION name 'VerQueryValueW';
-function  RegCreateKeyExW(hKey: HKEY; lpSubKey: LPCWSTR; Reserved: DWORD; lpClass: LPWSTR; dwOptions: DWORD; samDesired: REGSAM; lpSecurityAttributes: LPSECURITY_ATTRIBUTES; var phkResult: HKEY; lpdwDisposition: LPDWORD): longint; stdcall; external ADVAPI32 name 'RegCreateKeyExW';
-function  RegOpenKeyExW(hKey: HKEY; lpSubKey: LPCWSTR; ulOptions: DWORD; samDesired: REGSAM; var phkResult: HKEY): longint; stdcall; external ADVAPI32 name 'RegOpenKeyExW';
-function  RegQueryInfoKeyW(hKey: HKEY; lpClass: LPWSTR; lpcClass: LPDWORD; lpReserved: LPDWORD; lpcSubKeys: LPDWORD; lpcMaxSubKeyLen: LPDWORD; lpcMaxClassLen: LPDWORD; lpcValues: LPDWORD; lpcMaxValueNameLen: LPDWORD; lpcMaxValueLen: LPDWORD; lpcbSecurityDescriptor: LPDWORD; lpftLastWriteTime: PFILETIME): longint; stdcall; external ADVAPI32 name 'RegQueryInfoKeyW';
-function  RegEnumKeyExW(hKey: HKEY; dwIndex: DWORD; lpName: LPWSTR; lpcName: LPDWORD; lpReserved: LPDWORD; lpClass: LPWSTR; lpcClass: LPDWORD; lpftLastWriteTime: PFILETIME): longint; stdcall; external ADVAPI32 name 'RegEnumKeyExW';
-function  RegEnumValueW(hKey: HKEY; dwIndex: DWORD; lpValueName: LPWSTR; lpcchValueName: LPDWORD; lpReserved: LPDWORD; lpType: LPDWORD; lpData: PBYTE; lpcbData: LPDWORD): longint; stdcall; external ADVAPI32 name 'RegEnumValueW';
-function  RegDeleteKeyW(hKey: HKEY; lpSubKey: LPCWSTR): longint; stdcall; external ADVAPI32 name 'RegDeleteKeyW';
-function  RegQueryValueExW(hKey: HKEY; lpValueName: LPCWSTR; lpReserved: LPDWORD; lpType: LPDWORD; lpData: PBYTE; lpcbData: LPDWORD): longint; stdcall; external ADVAPI32 name 'RegQueryValueExW';
-function  RegSetValueExW(hKey: HKEY; lpValueName: LPCWSTR; Reserved: DWORD; dwType: DWORD; lpData: PBYTE; cbData: DWORD): longint; stdcall; external ADVAPI32 name 'RegSetValueExW';
-function  RegDeleteValueW(hKey: HKEY; lpValueName: LPCWSTR): longint; stdcall; external ADVAPI32 name 'RegDeleteValueW';
 
 function  GetVersionExA(var lpVersionInformation: TOSVersionInfoA): BOOL; stdcall; external CKERNEL32 name 'GetVersionExA';
 function  GetModuleHandleA(lpModuleName: LPCSTR): HMODULE; stdcall; external CKERNEL32 name 'GetModuleHandleA';
@@ -577,8 +556,6 @@ function  GetDiskFreeSpaceExA(lpDirectoryName: LPCSTR; lpFreeBytesAvailableToCal
 function  FormatMessageA(dwFlags: DWORD; lpSource: Pointer; dwMessageId: DWORD; dwLanguageId: DWORD; lpBuffer: LPCSTR; nSize: DWORD; Arguments: Pointer): DWORD; stdcall; external CKERNEL32 name 'FormatMessageA';
 function  CompareStringA(Locale: LCID; dwCmpFlags: DWORD; lpString1: LPCSTR; cchCount1: Integer; lpString2: PAnsiChar; cchCount2: Integer): Integer; stdcall; external CKERNEL32 name 'CompareStringA';
 function  LoadLibraryA(lpLibFileName: LPCSTR): HMODULE; stdcall; external CKERNEL32 name 'LoadLibraryA';
-function  DeleteFileA(lpFileName: LPCSTR): BOOL; stdcall; external CKERNEL32 name 'DeleteFileA';
-function  MoveFileA(lpExistingFileName: LPCSTR; lpNewFileName: LPCSTR): BOOL; stdcall; external CKERNEL32 name 'MoveFileA';
 function  CreateEventA(lpEventAttributes: LPSECURITY_ATTRIBUTES; bManualReset: BOOL; bInitialState: BOOL; lpName: LPCSTR): HANDLE; stdcall; external CKERNEL32 name 'CreateEventA';
 function  GetPrivateProfileStringA(lpAppName, lpKeyName, lpDefault: LPCSTR; lpReturnedString: LPSTR; nSize: DWORD; lpFileName: LPCSTR): DWORD; stdcall; external CKERNEL32 name 'GetPrivateProfileStringA';
 function  CharToOemA(lpszSrc: LPCSTR; lpszDst: LPCSTR): BOOL; stdcall; external CUSER32 name 'CharToOemA';
@@ -626,15 +603,6 @@ function  GetSaveFileNameA(var OpenFile: TOpenFilenameA): BOOL; stdcall; externa
 function  GetFileVersionInfoSizeA(lptstrFilename: LPCSTR; var lpdwHandle: DWORD): DWORD; stdcall; external CVERSION name 'GetFileVersionInfoSizeA';
 function  GetFileVersionInfoA(lptstrFilename: LPCSTR; dwHandle, dwLen: DWORD; lpData: Pointer): BOOL; stdcall; external CVERSION name 'GetFileVersionInfoA';
 function  VerQueryValueA(pBlock: Pointer; lpSubBlock: LPCSTR; var lplpBuffer: Pointer; var puLen: UINT): BOOL; stdcall; external CVERSION name 'VerQueryValueA';
-function  RegCreateKeyExA(hKey: HKEY; lpSubKey: LPCSTR; Reserved: DWORD; lpClass: LPSTR; dwOptions: DWORD; samDesired: REGSAM; lpSecurityAttributes: LPSECURITY_ATTRIBUTES; var phkResult: HKEY; lpdwDisposition: LPDWORD): longint; stdcall; external ADVAPI32 name 'RegCreateKeyExA';
-function  RegOpenKeyExA(hKey: HKEY; lpSubKey: LPCSTR; ulOptions: DWORD; samDesired: REGSAM; var phkResult: HKEY): longint; stdcall; external ADVAPI32 name 'RegOpenKeyExA';
-function  RegQueryInfoKeyA(hKey: HKEY; lpClass: LPSTR; lpcClass: LPDWORD; lpReserved: LPDWORD; lpcSubKeys: LPDWORD; lpcMaxSubKeyLen: LPDWORD; lpcMaxClassLen: LPDWORD; lpcValues: LPDWORD; lpcMaxValueNameLen: LPDWORD; lpcMaxValueLen: LPDWORD; lpcbSecurityDescriptor: LPDWORD; lpftLastWriteTime: PFILETIME): longint; stdcall; external ADVAPI32 name 'RegQueryInfoKeyA';
-function  RegEnumKeyExA(hKey: HKEY; dwIndex: DWORD; lpName: LPSTR; lpcName: LPDWORD; lpReserved: LPDWORD; lpClass: LPSTR; lpcClass: LPDWORD; lpftLastWriteTime: PFILETIME): longint; stdcall; external ADVAPI32 name 'RegEnumKeyExA';
-function  RegEnumValueA(hKey: HKEY; dwIndex: DWORD; lpValueName: LPSTR; lpcchValueName: LPDWORD; lpReserved: LPDWORD; lpType: LPDWORD; lpData: PBYTE; lpcbData: LPDWORD): longint; stdcall; external ADVAPI32 name 'RegEnumValueA';
-function  RegDeleteKeyA(hKey: HKEY; lpSubKey: LPCSTR): longint; stdcall; external ADVAPI32 name 'RegDeleteKeyA';
-function  RegQueryValueExA(hKey: HKEY; lpValueName: LPCSTR; lpReserved: LPDWORD; lpType: LPDWORD; lpData: PBYTE; lpcbData: LPDWORD): longint; stdcall; external ADVAPI32 name 'RegQueryValueExA';
-function  RegSetValueExA(hKey: HKEY; lpValueName: LPCSTR; Reserved: DWORD; dwType: DWORD; lpData: PBYTE; cbData: DWORD): longint; stdcall; external ADVAPI32 name 'RegSetValueExA';
-function  RegDeleteValueA(hKey: HKEY; lpValueName: LPCSTR): longint; stdcall; external ADVAPI32 name 'RegDeleteValueA';
 
 // Other API Declarations (Non Ansi/Unicode versions)
 
@@ -709,7 +677,7 @@ function  GetSystemMetrics(nIndex: Integer): Integer; stdcall; external CUSER32 
 function  GetComboBoxInfo(hwndCombo: HWND; var pcbi: TComboBoxInfo): BOOL; stdcall; external CUSER32 name 'GetComboBoxInfo';
 function  SetTimer(hWnd: HWND; nIDEvent, uElapse: UINT; lpTimerFunc: TFNTimerProc): UINT; stdcall; external CUSER32 name 'SetTimer';
 function  KillTimer(hWnd: HWND; uIDEvent: UINT): BOOL; stdcall; external CUSER32 name 'KillTimer';
-function  CreateIconFromResource(presbits: PBYTE; dwResSize: DWORD; fIcon: BOOL; dwVer: DWORD): HICON; stdcall; external CUSER32 name 'CreateIconFromResource';
+function  CreateIconFromResource(presbits: PByte; dwResSize: DWORD; fIcon: BOOL; dwVer: DWORD): HICON; stdcall; external CUSER32 name 'CreateIconFromResource';
 function  DestroyCursor(hCursor: HICON): BOOL; stdcall; external CUSER32 name 'DestroyCursor';
 function  DestroyIcon(hIcon: HICON): BOOL; stdcall; external CUSER32 name 'DestroyIcon';
 function  CreateMenu: HMENU; stdcall; external CUSER32 name 'CreateMenu';
@@ -718,7 +686,7 @@ function  SetMenu(hWnd: HWND; hMenu: HMENU): BOOL; stdcall; external CUSER32 nam
 function  EnableMenuItem(hMenu: HMENU; uIDEnableItem: UINT; uEnable: UINT): BOOL; stdcall; external CUSER32 name 'EnableMenuItem';
 function  CheckMenuItem(hMenu: HMENU; uIDCheckItem: UINT; uCheck: UINT): DWORD; stdcall; external CUSER32 name 'CheckMenuItem';
 function  DrawMenuBar(hWnd: HWND): BOOL; stdcall; external CUSER32 name 'DrawMenuBar';
-function  TrackPopupMenu(hMenu: HMENU; uFlags: UINT; x: longint; y: longint; nReserved: longint; hWnd: HWND; const prcRect: PRect): BOOL; stdcall; external CUSER32 name 'TrackPopupMenu';
+function  TrackPopupMenu(hMenu: HMENU; uFlags: UINT; x: longint; y: longint; nReserved: longint; hWnd: HWND; const prcRect: PRect): BOOl; stdcall; external CUSER32 name 'TrackPopupMenu';
 function  GetSystemMenu(hWnd: HWND; bRevert: BOOL): HMENU; stdcall; external CUSER32 name 'GetSystemMenu';
 function  DeleteMenu(hMenu: HMENU; uPosition, uFlags: UINT): BOOL; stdcall; external CUSER32 name 'DeleteMenu';
 function  DestroyMenu(hMenu: HMENU): BOOL; stdcall; external CUSER32 name 'DestroyMenu';
@@ -730,9 +698,6 @@ function  GetClipboardData(uFormat: UINT): HANDLE; stdcall; external CUSER32 nam
 function  SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall; external CUSER32 name 'SetClipboardData';
 function  IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall; external CUSER32 name 'IsClipboardFormatAvailable';
 function  CloseClipboard(): BOOL; stdcall; external CUSER32 name 'CloseClipboard';
-function  BeginDeferWindowPos(nNumWindows: Integer): HDWP; stdcall; external CUSER32 name 'BeginDeferWindowPos';
-function  DeferWindowPos(hWinPosInfo: HDWP; hWnd: HWND; hWndInsertAfter: HWND; x, y, cx, cy: Integer; uFlags: UINT): HDWP; stdcall; external CUSER32 name 'DeferWindowPos';
-function  EndDeferWindowPos(hWinPosInfo: HDWP): BOOL; stdcall; external CUSER32 name 'EndDeferWindowPos';
 function  SetBkMode(DC: HDC; BkMode: Integer): Integer; stdcall; external CGDI32 name 'SetBkMode';
 function  SetBkColor(DC: HDC; Color: COLORREF): COLORREF; stdcall; external CGDI32 name 'SetBkColor';
 function  SelectObject(DC: HDC; p2: HGDIOBJ): HGDIOBJ; stdcall; external CGDI32 name 'SelectObject';
@@ -751,11 +716,10 @@ function  SetDIBitsToDevice(DC: HDC; DestX, DestY: Integer; Width, Height: DWORD
 function  BitBlt(hdcDest: HDC; nXDest, nYDest, nWidth, nHeight: Integer; hdcSrc: HDC; nXSrc, nYSrc: Integer; dwRop: DWORD): BOOL; stdcall; external CGDI32 name 'BitBlt';
 function  CreateCompatibleDC(hDC: HDC): HDC; stdcall; external CGDI32 name 'CreateCompatibleDC';
 function  DeleteDC(hDC: HDC): BOOL; stdcall; external CGDI32 name 'DeleteDC';
-function  CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: PBYTE; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall; external CGDI32 name 'CreateDIBitmap';
+function  CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: pByte; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall; external CGDI32 name 'CreateDIBitmap';
 function  CreateCompatibleBitmap(hDC: HDC; nWidth, nHeight: Integer): HBITMAP; stdcall; external CGDI32 name 'CreateCompatibleBitmap';
 procedure InitCommonControls(); stdcall; external CCOMCTL32 name 'InitCommonControls';
 procedure CoTaskMemFree(pv: Pointer); stdcall; external COLE32 name 'CoTaskMemFree';
-function  RegCloseKey(hKey: HKEY): longint; stdcall; external ADVAPI32 name 'RegCloseKey';
 
 // API Functions mapping
 
@@ -804,8 +768,6 @@ function  LLCL_GetFileVersionInfoSize(lptstrFilename: PChar; var lpdwHandle: DWO
 function  LLCL_GetFileVersionInfo(lptstrFilename: PChar; dwHandle, dwLen: DWORD; lpData: Pointer): BOOL;
 function  LLCL_VerQueryValue(pBlock: Pointer; lpSubBlock: PChar; var lplpBuffer: Pointer; var puLen: UINT): BOOL;
 function  LLCL_LoadLibrary(lpLibFileName: PChar): HMODULE;
-function  LLCL_DeleteFile(lpFileName: PChar): BOOL;
-function  LLCL_MoveFile(lpExistingFileName: PChar; lpNewFileName: PChar): BOOL;
 function  LLCL_CreateEvent(lpEventAttributes: LPSECURITY_ATTRIBUTES; bManualReset: BOOL; bInitialState: BOOL; lpName: PChar): HANDLE;
 
 {$IFDEF LLCL_API_ALLMAPPING}
@@ -880,7 +842,7 @@ function  LLCL_GetSystemMetrics(nIndex: Integer): Integer; stdcall;
 function  LLCL_GetComboBoxInfo(hwndCombo: HWND; var pcbi: TComboBoxInfo): BOOL; stdcall;
 function  LLCL_SetTimer(hWnd: HWND; nIDEvent, uElapse: UINT; lpTimerFunc: TFNTimerProc): UINT; stdcall;
 function  LLCL_KillTimer(hWnd: HWND; uIDEvent: UINT): BOOL; stdcall;
-function  LLCL_CreateIconFromResource(presbits: PBYTE; dwResSize: DWORD; fIcon: BOOL; dwVer: DWORD): HICON; stdcall;
+function  LLCL_CreateIconFromResource(presbits: PByte; dwResSize: DWORD; fIcon: BOOL; dwVer: DWORD): HICON; stdcall;
 function  LLCL_DestroyCursor(hCursor: HICON): BOOL; stdcall;
 function  LLCL_DestroyIcon(hIcon: HICON): BOOL; stdcall;
 function  LLCL_CreateMenu: HMENU; stdcall;
@@ -889,7 +851,7 @@ function  LLCL_SetMenu(hWnd: HWND; hMenu: HMENU): BOOL; stdcall;
 function  LLCL_EnableMenuItem(hMenu: HMENU; uIDEnableItem: UINT; uEnable: UINT): BOOL; stdcall;
 function  LLCL_CheckMenuItem(hMenu: HMENU; uIDCheckItem: UINT; uCheck: UINT): DWORD; stdcall;
 function  LLCL_DrawMenuBar(hWnd: HWND): BOOL; stdcall;
-function  LLCL_TrackPopupMenu(hMenu: HMENU; uFlags: UINT; x: longint; y: longint; nReserved: longint; hWnd: HWND; const prcRect: PRect): BOOL; stdcall;
+function  LLCL_TrackPopupMenu(hMenu: HMENU; uFlags: UINT; x: longint; y: longint; nReserved: longint; hWnd: HWND; const prcRect: PRect): BOOl; stdcall;
 function  LLCL_GetSystemMenu(hWnd: HWND; bRevert: BOOL): HMENU; stdcall;
 function  LLCL_DeleteMenu(hMenu: HMENU; uPosition, uFlags: UINT): BOOL; stdcall;
 function  LLCL_DestroyMenu(hMenu: HMENU): BOOL; stdcall;
@@ -901,9 +863,6 @@ function  LLCL_GetClipboardData(uFormat: UINT): HANDLE; stdcall;
 function  LLCL_SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall;
 function  LLCL_IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall;
 function  LLCL_CloseClipboard(): BOOL; stdcall;
-function  LLCL_BeginDeferWindowPos(nNumWindows: Integer): HDWP; stdcall;
-function  LLCL_DeferWindowPos(hWinPosInfo: HDWP; hWnd: HWND; hWndInsertAfter: HWND; x, y, cx, cy: Integer; uFlags: UINT): HDWP; stdcall;
-function  LLCL_EndDeferWindowPos(hWinPosInfo: HDWP): BOOL; stdcall;
 function  LLCL_SetBkMode(DC: HDC; BkMode: Integer): Integer; stdcall;
 function  LLCL_SetBkColor(DC: HDC; Color: COLORREF): COLORREF; stdcall;
 function  LLCL_SelectObject(DC: HDC; p2: HGDIOBJ): HGDIOBJ; stdcall;
@@ -922,10 +881,9 @@ function  LLCL_SetDIBitsToDevice(DC: HDC; DestX, DestY: Integer; Width, Height: 
 function  LLCL_BitBlt(hdcDest: HDC; nXDest, nYDest, nWidth, nHeight: Integer; hdcSrc: HDC; nXSrc, nYSrc: Integer; dwRop: DWORD): BOOL; stdcall;
 function  LLCL_CreateCompatibleDC(hDC: HDC): HDC; stdcall;
 function  LLCL_DeleteDC(hDC: HDC): BOOL; stdcall;
-function  LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: PBYTE; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall;
+function  LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: pByte; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall;
 function  LLCL_CreateCompatibleBitmap(hDC: HDC; nWidth, nHeight: Integer): HBITMAP; stdcall;
 procedure LLCL_InitCommonControls(); stdcall;
-function  LLCL_RegCloseKey(hKey: HKEY): longint; stdcall;
 {$ELSE}
 function  LLCL_GetLastError(): DWORD; stdcall; external CKERNEL32 name 'GetLastError';
 function  LLCL_GetCurrentThreadId(): DWORD; stdcall; external CKERNEL32 name 'GetCurrentThreadId';
@@ -998,7 +956,7 @@ function  LLCL_GetSystemMetrics(nIndex: Integer): Integer; stdcall; external CUS
 function  LLCL_GetComboBoxInfo(hwndCombo: HWND; var pcbi: TComboBoxInfo): BOOL; stdcall; external CUSER32 name 'GetComboBoxInfo';
 function  LLCL_SetTimer(hWnd: HWND; nIDEvent, uElapse: UINT; lpTimerFunc: TFNTimerProc): UINT; stdcall; external CUSER32 name 'SetTimer';
 function  LLCL_KillTimer(hWnd: HWND; uIDEvent: UINT): BOOL; stdcall; external CUSER32 name 'KillTimer';
-function  LLCL_CreateIconFromResource(presbits: PBYTE; dwResSize: DWORD; fIcon: BOOL; dwVer: DWORD): HICON; stdcall; external CUSER32 name 'CreateIconFromResource';
+function  LLCL_CreateIconFromResource(presbits: PByte; dwResSize: DWORD; fIcon: BOOL; dwVer: DWORD): HICON; stdcall; external CUSER32 name 'CreateIconFromResource';
 function  LLCL_DestroyCursor(hCursor: HICON): BOOL; stdcall; external CUSER32 name 'DestroyCursor';
 function  LLCL_DestroyIcon(hIcon: HICON): BOOL; stdcall; external CUSER32 name 'DestroyIcon';
 function  LLCL_CreateMenu: HMENU; stdcall; external CUSER32 name 'CreateMenu';
@@ -1007,7 +965,7 @@ function  LLCL_SetMenu(hWnd: HWND; hMenu: HMENU): BOOL; stdcall; external CUSER3
 function  LLCL_EnableMenuItem(hMenu: HMENU; uIDEnableItem: UINT; uEnable: UINT): BOOL; stdcall; external CUSER32 name 'EnableMenuItem';
 function  LLCL_CheckMenuItem(hMenu: HMENU; uIDCheckItem: UINT; uCheck: UINT): DWORD; stdcall; external CUSER32 name 'CheckMenuItem';
 function  LLCL_DrawMenuBar(hWnd: HWND): BOOL; stdcall; external CUSER32 name 'DrawMenuBar';
-function  LLCL_TrackPopupMenu(hMenu: HMENU; uFlags: UINT; x: longint; y: longint; nReserved: longint; hWnd: HWND; const prcRect: PRect): BOOL; stdcall; external CUSER32 name 'TrackPopupMenu';
+function  LLCL_TrackPopupMenu(hMenu: HMENU; uFlags: UINT; x: longint; y: longint; nReserved: longint; hWnd: HWND; const prcRect: PRect): BOOl; stdcall; external CUSER32 name 'TrackPopupMenu';
 function  LLCL_GetSystemMenu(hWnd: HWND; bRevert: BOOL): HMENU; stdcall; external CUSER32 name 'GetSystemMenu';
 function  LLCL_DeleteMenu(hMenu: HMENU; uPosition, uFlags: UINT): BOOL; stdcall; external CUSER32 name 'DeleteMenu';
 function  LLCL_DestroyMenu(hMenu: HMENU): BOOL; stdcall; external CUSER32 name 'DestroyMenu';
@@ -1019,9 +977,6 @@ function  LLCL_GetClipboardData(uFormat: UINT): HANDLE; stdcall; external CUSER3
 function  LLCL_SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall; external CUSER32 name 'SetClipboardData';
 function  LLCL_IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall; external CUSER32 name 'IsClipboardFormatAvailable';
 function  LLCL_CloseClipboard(): BOOL; stdcall; external CUSER32 name 'CloseClipboard';
-function  LLCL_BeginDeferWindowPos(nNumWindows: Integer): HDWP; stdcall; external CUSER32 name 'BeginDeferWindowPos';
-function  LLCL_DeferWindowPos(hWinPosInfo: HDWP; hWnd: HWND; hWndInsertAfter: HWND; x, y, cx, cy: Integer; uFlags: UINT): HDWP; stdcall; external CUSER32 name 'DeferWindowPos';
-function  LLCL_EndDeferWindowPos(hWinPosInfo: HDWP): BOOL; stdcall; external CUSER32 name 'EndDeferWindowPos';
 function  LLCL_SetBkMode(DC: HDC; BkMode: Integer): Integer; stdcall; external CGDI32 name 'SetBkMode';
 function  LLCL_SetBkColor(DC: HDC; Color: COLORREF): COLORREF; stdcall; external CGDI32 name 'SetBkColor';
 function  LLCL_SelectObject(DC: HDC; p2: HGDIOBJ): HGDIOBJ; stdcall; external CGDI32 name 'SelectObject';
@@ -1040,10 +995,9 @@ function  LLCL_SetDIBitsToDevice(DC: HDC; DestX, DestY: Integer; Width, Height: 
 function  LLCL_BitBlt(hdcDest: HDC; nXDest, nYDest, nWidth, nHeight: Integer; hdcSrc: HDC; nXSrc, nYSrc: Integer; dwRop: DWORD): BOOL; stdcall; external CGDI32 name 'BitBlt';
 function  LLCL_CreateCompatibleDC(hDC: HDC): HDC; stdcall; external CGDI32 name 'CreateCompatibleDC';
 function  LLCL_DeleteDC(hDC: HDC): BOOL; stdcall; external CGDI32 name 'DeleteDC';
-function  LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: PBYTE; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall; external CGDI32 name 'CreateDIBitmap';
+function  LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: pByte; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall; external CGDI32 name 'CreateDIBitmap';
 function  LLCL_CreateCompatibleBitmap(hDC: HDC; nWidth, nHeight: Integer): HBITMAP; stdcall; external CGDI32 name 'CreateCompatibleBitmap';
 procedure LLCL_InitCommonControls(); stdcall; external CCOMCTL32 name 'InitCommonControls';
-function  LLCL_RegCloseKey(hKey: HKEY): longint; stdcall; external ADVAPI32 name 'RegCloseKey';
 {$ENDIF}
 
 {$IFDEF LLCL_FPC_ANSISYS}
@@ -1063,8 +1017,6 @@ function  LLCLSys_GetFileVersionInfoSize(lptstrFilename: PChar; var lpdwHandle: 
 function  LLCLSys_GetFileVersionInfo(lptstrFilename: PChar; dwHandle, dwLen: DWORD; lpData: Pointer): BOOL;
 function  LLCLSys_VerQueryValue(pBlock: Pointer; lpSubBlock: PChar; var lplpBuffer: Pointer; var puLen: UINT): BOOL;
 function  LLCLSys_LoadLibrary(lpLibFileName: PChar): HMODULE;
-function  LLCLSys_DeleteFile(lpFileName: PChar): BOOL;
-function  LLCLSys_MoveFile(lpExistingFileName: PChar; lpNewFileName: PChar): BOOL;
 //
 function  LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 function  LLCLSys_CharUpperBuff(const sText: string): string;
@@ -1087,8 +1039,6 @@ function  LLCLSys_GetFileVersionInfoSize(lptstrFilename: PUnicodeChar; var lpdwH
 function  LLCLSys_GetFileVersionInfo(lptstrFilename: PUnicodeChar; dwHandle, dwLen: DWORD; lpData: Pointer): BOOL;
 function  LLCLSys_VerQueryValue(pBlock: Pointer; lpSubBlock: PUnicodeChar; var lplpBuffer: Pointer; var puLen: UINT): BOOL;
 function  LLCLSys_LoadLibrary(lpLibFileName: PUnicodeChar): HMODULE;
-function  LLCLSys_DeleteFile(lpFileName: PUnicodeChar): BOOL;
-function  LLCLSys_MoveFile(lpExistingFileName: PUnicodeChar; lpNewFileName: PUnicodeChar): BOOL;
 // (string instead of unicodestring)
 function  LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 function  LLCLSys_CharUpperBuff(const sText: string): string;
@@ -1136,24 +1086,13 @@ procedure LLCLS_LV_SetItemWithText(MsgType: Cardinal; hWnd: HWND; const lvi: LV_
 function  LLCLS_LV_GetItemText(hWnd: HWND; iItem: integer; iSubItem: integer): string;
 function  LLCLS_LV_ImageList_Create(cx: integer; cy: integer; flags: cardinal; cInitial: integer; cGrow: integer): HIMAGELIST;
 function  LLCLS_LV_ImageList_Destroy(himl: HIMAGELIST): BOOL;
-function  LLCLS_SH_BrowseForFolder(const BrowseInfo: TBrowseInfo; const sTitle: string; const sRoot: string; var sDirName: string): BOOL;
+function  LLCLS_SH_BrowseForFolder(const BrowseInfo: TBrowseInfo; const sTitle: string; const sRoot: string; var sDirName: string): BOOl;
 function  LLCLS_INI_ReadString(const FileName, Section, Ident, Default: string): string;
 procedure LLCLS_INI_WriteString(const FileName, Section, Ident, Value: string);
 procedure LLCLS_INI_Delete(const FileName: string; Section, Ident: PChar);
 function  LLCLS_CLPB_GetTextFormat(): cardinal;
 function  LLCLS_CLPB_SetTextPtr(const sText: string; var iLen: cardinal): Pointer;
 function  LLCLS_CLPB_GetText(lpText: Pointer): string;
-function  LLCLS_REG_RegCreateKeyEx(hKey: HKEY; const SubKey: string; Reserved: DWORD; lpClass: PChar; dwOptions: DWORD; samDesired: REGSAM; lpSecurityAttributes: LPSECURITY_ATTRIBUTES; var phkResult: HKEY; lpdwDisposition: LPDWORD): longint;
-function  LLCLS_REG_RegOpenKeyEx(hKey: HKEY; const SubKey: string; ulOptions: DWORD; samDesired: REGSAM; var phkResult: HKEY): longint;
-function  LLCLS_REG_RegQueryInfoKey(hKey: HKEY; lpClass: PChar; lpcClass: LPDWORD; lpReserved: LPDWORD; lpcSubKeys: LPDWORD; lpcMaxSubKeyLen: LPDWORD; lpcMaxClassLen: LPDWORD; lpcValues: LPDWORD; lpcMaxValueNameLen: LPDWORD; lpcMaxValueLen: LPDWORD; lpcbSecurityDescriptor: LPDWORD; lpftLastWriteTime: PFILETIME): longint;
-function  LLCLS_REG_RegEnumKeyEx(hKey: HKEY; dwIndex: DWORD; var Name: string; lpcName: LPDWORD; lpReserved: LPDWORD; lpClass: PChar; lpcClass: LPDWORD; lpftLastWriteTime: PFILETIME): longint;
-function  LLCLS_REG_RegEnumValue(hKey: HKEY; dwIndex: DWORD; var ValueName: string; lpcchValueName: LPDWORD; lpReserved: LPDWORD; lpType: LPDWORD; lpData: PBYTE; lpcbData: LPDWORD): longint;
-function  LLCLS_REG_RegDeleteKey(hKey: HKEY; const SubKey: string): longint;
-function  LLCLS_REG_RegQueryValueEx(hKey: HKEY; const ValueName: string; lpReserved: LPDWORD; lpType: LPDWORD; lpData: PBYTE; lpcbData: LPDWORD): longint;
-function  LLCLS_REG_RegQueryStringValue(hKey: HKEY; const ValueName: string; lpType: LPDWORD; var Data: string): longint;
-function  LLCLS_REG_RegSetValueEx(hKey: HKEY; const ValueName: string; Reserved: DWORD; dwType: DWORD; lpData: PBYTE; cbData: DWORD): longint;
-function  LLCLS_REG_RegDeleteValue(hKey: HKEY; const ValueName: string): longint;
-function  LLCLS_REG_SetTextPtr(const sText: string; var iLen: cardinal): Pointer;
 {$IFDEF LLCL_OPT_IMGTRANSPARENT}
 function  LLCLS_CheckAlphaBlend(): boolean;
 function  LLCLS_AlphaBlend(hdcDest: HDC; xoriginDest, yoriginDest, wDest, hDest: integer; hdcSrc: HDC; xoriginSrc, yoriginSrc, wSrc, hSrc: integer; ftn: BLENDFUNCTION): BOOL;
@@ -1968,7 +1907,7 @@ begin
 {$ENDIF}
 end;
 
-function LLCL_FindResource(hModule: HMODULE; lpName, lpType: PChar): HRSRC;
+function  LLCL_FindResource(hModule: HMODULE; lpName, lpType: PChar): HRSRC;
 {$IFDEF LLCL_UNICODE_API_W}
 var wName, wType: unicodestring;
 var lpwName, lpwType: PUnicodeChar;
@@ -2183,60 +2122,6 @@ begin
 {$ENDIF}
 end;
 
-function LLCL_DeleteFile(lpFileName: PChar): BOOL;
-{$IFDEF LLCL_UNICODE_API_W}
-var wStr: unicodestring;
-{$ENDIF}
-{$IFNDEF LLCL_UNICODE_API_W_ONLY}
-var aStr: ansistring;
-{$ENDIF}
-begin
-{$IFDEF LLCL_UNICODE_API_W}
-  if UnicodeEnabledOS then
-    begin
-      wStr := StrToTextDispW(lpFilename);
-      result := DeleteFileW(@wStr[1]);
-    end
-  else
-{$ENDIF}
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-    result := false;
-{$ELSE}
-    begin
-      aStr := StrToTextDispA(lpFilename);
-      result := DeleteFileA(@aStr[1]);
-    end;
-{$ENDIF}
-end;
-
-function LLCL_MoveFile(lpExistingFileName: PChar; lpNewFileName: PChar): BOOL;
-{$IFDEF LLCL_UNICODE_API_W}
-var wOldName, wNewName: unicodestring;
-{$ENDIF}
-{$IFNDEF LLCL_UNICODE_API_W_ONLY}
-var aOldName, aNewName: ansistring;
-{$ENDIF}
-begin
-{$IFDEF LLCL_UNICODE_API_W}
-  if UnicodeEnabledOS then
-    begin
-      wOldName := StrToTextDispW(lpExistingFileName);
-      wNewName := StrToTextDispW(lpNewFileName);
-      result := MoveFileW(@wOldName[1], @wNewName[1]);
-    end
-  else
-{$ENDIF}
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-    result := false;
-{$ELSE}
-    begin
-      aOldName := StrToTextDispA(lpExistingFileName);
-      aNewName := StrToTextDispA(lpNewFileName);
-      result := MoveFileA(@aOldName[1], @aNewName[1]);
-    end;
-{$ENDIF}
-end;
-
 function LLCL_CreateEvent(lpEventAttributes: LPSECURITY_ATTRIBUTES; bManualReset: BOOL; bInitialState: BOOL; lpName: PChar): HANDLE;
 {$IFDEF LLCL_UNICODE_API_W}
 var wStr: unicodestring;
@@ -2411,47 +2296,47 @@ begin
   result := GetACP();
 end;
 
-function LLCL_GetOEMCP(): UINT; stdcall;
+function  LLCL_GetOEMCP(): UINT; stdcall;
 begin
   result := GetOEMCP();
 end;
 
-function LLCL_LoadResource(hModule: HINST; hResInfo: HRSRC): HGLOBAL; stdcall;
+function  LLCL_LoadResource(hModule: HINST; hResInfo: HRSRC): HGLOBAL; stdcall;
 begin
   result := LoadResource(hModule, hResInfo);
 end;
 
-function LLCL_LockResource(hResData: HGLOBAL): Pointer; stdcall;
+function  LLCL_LockResource(hResData: HGLOBAL): Pointer; stdcall;
 begin
   result := LockResource(hResData);
 end;
 
-function LLCL_FreeResource(hResData: HGLOBAL): BOOL; stdcall;
+function  LLCL_FreeResource(hResData: HGLOBAL): BOOL; stdcall;
 begin
   result := FreeResource(hResData);
 end;
 
-function LLCL_FreeLibrary(hModule: HMODULE): BOOL; stdcall;
+function  LLCL_FreeLibrary(hModule: HMODULE): BOOL; stdcall;
 begin
   result := FreeLibrary(hModule);
 end;
 
-function LLCL_GlobalAlloc(uFlags: UINT; dwBytes: DWORD): HGLOBAL; stdcall;
+function  LLCL_GlobalAlloc(uFlags: UINT; dwBytes: DWORD): HGLOBAL; stdcall;
 begin
   result := GlobalAlloc(uFlags, dwBytes);
 end;
 
-function LLCL_GlobalLock(hMem: HGLOBAL): Pointer; stdcall;
+function  LLCL_GlobalLock(hMem: HGLOBAL): Pointer; stdcall;
 begin
   result := GlobalLock(hMem);
 end;
 
-function LLCL_GlobalUnlock(hMem: HGLOBAL): BOOL; stdcall;
+function  LLCL_GlobalUnlock(hMem: HGLOBAL): BOOL; stdcall;
 begin
   result := GlobalUnlock(hMem);
 end;
 
-function LLCL_GlobalFree(hMem: HGLOBAL): HGLOBAL; stdcall;
+function  LLCL_GlobalFree(hMem: HGLOBAL): HGLOBAL; stdcall;
 begin
   result := GlobalFree(hMem);
 end;
@@ -2621,7 +2506,7 @@ begin
   result := KillTimer(hWnd, uIDEvent);
 end;
 
-function LLCL_CreateIconFromResource(presbits: PBYTE; dwResSize: DWORD; fIcon: BOOL; dwVer: DWORD): HICON; stdcall;
+function LLCL_CreateIconFromResource(presbits: PByte; dwResSize: DWORD; fIcon: BOOL; dwVer: DWORD): HICON; stdcall;
 begin
   result := CreateIconFromResource(presbits, dwResSize, fIcon, dwVer);
 end;
@@ -2666,7 +2551,7 @@ begin
   result := DrawMenuBar(hWnd);
 end;
 
-function LLCL_TrackPopupMenu(hMenu: HMENU; uFlags: UINT; x: longint; y: longint; nReserved: longint; hWnd: HWND; const prcRect: PRect): BOOL; stdcall;
+function LLCL_TrackPopupMenu(hMenu: HMENU; uFlags: UINT; x: longint; y: longint; nReserved: longint; hWnd: HWND; const prcRect: PRect): BOOl; stdcall;
 begin
   result := TrackPopupMenu(hMenu, uFlags, x, y, nReserved, hWnd, prcRect);
 end;
@@ -2696,49 +2581,34 @@ begin
   result := MessageBeep(uType);
 end;
 
-function LLCL_OpenClipboard(hWndNewOwner: HWND): BOOL; stdcall;
+function  LLCL_OpenClipboard(hWndNewOwner: HWND): BOOL; stdcall;
 begin
   result := OpenClipboard(hWndNewOwner);
 end;
 
-function LLCL_EmptyClipboard(): BOOL; stdcall;
+function  LLCL_EmptyClipboard(): BOOL; stdcall;
 begin
   result := EmptyClipboard();
 end;
 
-function LLCL_GetClipboardData(uFormat: UINT): HANDLE; stdcall;
+function  LLCL_GetClipboardData(uFormat: UINT): HANDLE; stdcall;
 begin
   result := GetClipboardData(uFormat);
 end;
 
-function LLCL_SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall;
+function  LLCL_SetClipboardData(uFormat: UINT; hMem: HANDLE): HANDLE; stdcall;
 begin
   result := SetClipboardData(uFormat, hMem);
 end;
 
-function LLCL_IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall;
+function  LLCL_IsClipboardFormatAvailable(uFormat: UINT): BOOL; stdcall;
 begin
   result := IsClipboardFormatAvailable(uFormat);
 end;
 
-function LLCL_CloseClipboard(): BOOL; stdcall;
+function  LLCL_CloseClipboard(): BOOL; stdcall;
 begin
   result := CloseClipboard();
-end;
-
-function  LLCL_BeginDeferWindowPos(nNumWindows: Integer): HDWP; stdcall;
-begin
-  result := BeginDeferWindowPos(nNumWindows);
-end;
-
-function  LLCL_DeferWindowPos(hWinPosInfo: HDWP; hWnd: HWND; hWndInsertAfter: HWND; x, y, cx, cy: Integer; uFlags: UINT): HDWP; stdcall;
-begin
-  result := DeferWindowPos(hWinPosInfo, hWnd, hWndInsertAfter, x, y, cx, cy, uFlags);
-end;
-
-function  LLCL_EndDeferWindowPos(hWinPosInfo: HDWP): BOOL; stdcall;
-begin
-  result := EndDeferWindowPos(hWinPosInfo);
 end;
 
 function LLCL_SetBkMode(DC: HDC; BkMode: Integer): Integer; stdcall;
@@ -2831,7 +2701,7 @@ begin
   result := DeleteDC(hDC);
 end;
 
-function LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: PBYTE; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall;
+function LLCL_CreateDIBitmap(hDc: HDC; lpbmih: PBITMAPINFOHEADER; fdwInit: DWORD; lpbInit: pByte; lpbmi: PBITMAPINFO; fuUsage: UINT): HBITMAP; stdcall;
 begin
   result := CreateDIBitmap(hDc, lpbmih, fdwInit, lpbInit, lpbmi, fuUsage);
 end;
@@ -2844,11 +2714,6 @@ end;
 procedure LLCL_InitCommonControls(); stdcall;
 begin
   InitCommonControls();
-end;
-
-function LLCL_RegCloseKey(hKey: HKEY): longint; stdcall;
-begin
-  result := RegCloseKey(hKey);
 end;
 {$ENDIF}
 
@@ -3004,19 +2869,9 @@ begin
   result := LoadLibraryA(lpLibFileName);
 end;
 
-function LLCLSys_DeleteFile(lpFileName: PChar): BOOL;
-begin
-  result := DeleteFileA(lpFileName);
-end;
-
-function LLCLSys_MoveFile(lpExistingFileName: PChar; lpNewFileName: PChar): BOOL;
-begin
-  result := MoveFileA(lpExistingFileName, lpNewFileName);
-end;
-
 function LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 begin
-  result := CompareStringA(Locale, dwCmpFlags, @String1[1], Length(String1), @String2[1], Length(String2));
+  result := CompareStringA(Locale, dwCmpFlags, @String1[1], length(String1), @String2[1], length(String2));
 end;
 
 function LLCLSys_CharUpperBuff(const sText: string): string;
@@ -3178,22 +3033,12 @@ begin
   result := LoadLibraryW(lpLibFileName);
 end;
 
-function LLCLSys_DeleteFile(lpFileName: PUnicodeChar): BOOL;
-begin
-  result := DeleteFileW(lpFileName);
-end;
-
-function LLCLSys_MoveFile(lpExistingFileName: PUnicodeChar; lpNewFileName: PUnicodeChar): BOOL;
-begin
-  result := MoveFileW(lpExistingFileName, lpNewFileName);
-end;
-
 function LLCLSys_CompareString(Locale: LCID; dwCmpFlags: DWORD; const String1: string; const String2: string): Integer;
 var sString1, sString2: unicodestring;
 begin
   sString1 := unicodestring(String1);
   sString2 := unicodestring(String2);
-  result := CompareStringW(Locale, dwCmpFlags, @sString1[1], Length(sString1), @sString2[1], Length(sString2));
+  result := CompareStringW(Locale, dwCmpFlags, @sString1[1], length(sString1), @sString2[1], length(sString2));
 end;
 
 function LLCLSys_CharUpperBuff(const sText: string): string;
@@ -3335,7 +3180,7 @@ begin
 end;
 
 // Change windows default layout
-function LLCLS_SetProcessDefaultLayout(dwDefaultLayout: DWORD): BOOL;
+function LLCLS_SetProcessDefaultLayout(dwDefaultLayout: DWORD): BOOl;
 var PAddrSetProcessDefaultLayout: function(dwDefaultLayout: cardinal): longbool; stdcall;
 begin
   result := false;
@@ -3486,7 +3331,7 @@ begin
     begin
       wString1 := StrToTextDispW(String1);
       wString2 := StrToTextDispW(String2);
-      result := CompareStringW(Locale, dwCmpFlags, @wString1[1], Length(wString1), @wString2[1], Length(wString2));
+      result := CompareStringW(Locale, dwCmpFlags, @wString1[1], length(wString1), @wString2[1], length(wString2));
     end
   else
 {$ENDIF}
@@ -3496,7 +3341,7 @@ begin
     begin
       aString1 := StrToTextDispA(String1);
       aString2 := StrToTextDispA(String2);
-      result := CompareStringA(Locale, dwCmpFlags, @aString1[1], Length(aString1), @aString2[1], Length(aString2));
+      result := CompareStringA(Locale, dwCmpFlags, @aString1[1], length(aString1), @aString2[1], length(aString2));
     end;
 {$ENDIF}
 end;
@@ -3514,7 +3359,7 @@ begin
   if UnicodeEnabledOS then
     begin
       wStr := StrToTextDispW(sText);
-      if CharUpperBuffW(@wStr[1], Length(wStr))<>0 then
+      if CharUpperBuffW(@wStr[1], length(wStr))<>0 then
         result := StrFromTextDispW(wStr);
     end
   else
@@ -3524,7 +3369,7 @@ begin
 {$ELSE}
     begin
       aStr := StrToTextDispA(sText);
-      if CharUpperBuffA(@aStr[1], Length(aStr))<>0 then
+      if CharUpperBuffA(@aStr[1], length(aStr))<>0 then
         result := StrFromTextDispA(aStr);
     end;
 {$ENDIF}
@@ -3543,7 +3388,7 @@ begin
   if UnicodeEnabledOS then
     begin
       wStr := StrToTextDispW(sText);
-      if CharLowerBuffW(@wStr[1], Length(wStr))<>0 then
+      if CharLowerBuffW(@wStr[1], length(wStr))<>0 then
         result := StrFromTextDispW(wStr);
     end
   else
@@ -3553,7 +3398,7 @@ begin
 {$ELSE}
     begin
       aStr := StrToTextDispA(sText);
-      if CharLowerBuffA(@aStr[1], Length(aStr))<>0 then
+      if CharLowerBuffA(@aStr[1], length(aStr))<>0 then
         result := StrFromTextDispA(aStr);
     end;
 {$ENDIF}
@@ -4088,7 +3933,7 @@ begin
 {$ENDIF}
 end;
 
-function LLCLS_StringToOem(const sText: string): ansistring;
+function  LLCLS_StringToOem(const sText: string): ansistring;
 {$IFDEF LLCL_UNICODE_API_W}
 var wStrIn: unicodestring;
 {$ENDIF}
@@ -4102,7 +3947,7 @@ begin
   if UnicodeEnabledOS then
     begin
       wStrIn := StrToTextDispW(sText);
-      SetLength(aStrOut, Length(wStrIn)+1);
+      SetLength(aStrOut, length(wStrIn)+1);
       if CharToOEMW(@wStrIn[1], @aStrOut[1]) then
         result := aStrOut;
     end
@@ -4113,7 +3958,7 @@ begin
 {$ELSE}
     begin
       aStrIn := StrToTextDispA(sText);
-      SetLength(aStrOut, Length(aStrIn)+1);
+      SetLength(aStrOut, length(aStrIn)+1);
       if CharToOEMA(@aStrIn[1], @aStrOut[1]) then
         result := aStrOut;
     end;
@@ -4156,7 +4001,7 @@ begin
   ReleaseDC(hWnd, ADC);
 end;
 
-function LLCLS_KeysToShiftState(Keys: Word): LLCL_TShiftState;
+function  LLCLS_KeysToShiftState(Keys: Word): LLCL_TShiftState;
 begin
   result := [];
   if Keys and MK_SHIFT<>0 then Include(result, ssShift);
@@ -4167,7 +4012,7 @@ begin
   if LLCL_GetKeyState(VK_MENU) < 0 then Include(result, ssAlt);
 end;
 
-function LLCLS_KeyDataToShiftState(KeyData: integer): LLCL_TShiftState;
+function  LLCLS_KeyDataToShiftState(KeyData: integer): LLCL_TShiftState;
 const
   AltMask = $20000000;
 begin
@@ -4200,7 +4045,7 @@ begin
   if UnicodeEnabledOS then
     begin
       wStr:=StrToTextDispW(Str);
-      for i := 1 to (Length(wStr)-1) do
+      for i := 1 to (length(wStr)-1) do
         if (wStr[i]=AMPER) and (wStr[i+1]<>AMPER) then
           begin
             result := Ord(wStr[i+1]);
@@ -4214,7 +4059,7 @@ begin
 {$ELSE}
     begin
       aStr:=StrToTextDispA(Str);
-      for i := 1 to (Length(aStr)-1) do
+      for i := 1 to (length(aStr)-1) do
         if (aStr[i]=AMPER) and (aStr[i+1]<>AMPER) then
           begin
             result := Ord(aStr[i+1]);
@@ -4453,7 +4298,7 @@ begin
 		result := PAddrImageList_Destroy(himl);
 end;
 
-function LLCLS_SH_BrowseForFolder(const BrowseInfo: TBrowseInfo; const sTitle: string; const sRoot: string; var sDirName: string): BOOL;
+function LLCLS_SH_BrowseForFolder(const BrowseInfo: TBrowseInfo; const sTitle: string; const sRoot: string; var sDirName: string): BOOl;
 {$IFDEF LLCL_UNICODE_API_W}
 var wBuffer: array[0..MAX_PATH+1] of WideChar;  // (Including terminating null character, plus one)
 var wTitle, wRoot: unicodestring;
@@ -4682,27 +4527,24 @@ end;
 // Must be coherent with LLCLS_CLPB_GetTextFormat
 function LLCLS_CLPB_SetTextPtr(const sText: string; var iLen: cardinal): Pointer;
 {$IFDEF LLCL_UNICODE_API_W}
-var wText: unicodestring;
+var wStr: unicodestring;
 {$ENDIF}
-var aText: ansistring;
-var pText: Pointer;
+var aStr: ansistring;
 begin
 {$IFDEF LLCL_UNICODE_API_W}
   if UnicodeEnabledOS then
     begin
-      wText := StrToTextDispW(sText);
-      iLen := (Length(wText) + 1)*2;
-      pText := @wText[1];
+      wStr := StrToTextDispW(sText);
+      result := @wStr[1];
+      iLen := (length(wStr) + 1) * 2;
     end
   else
 {$ENDIF}
     begin
-      aText := StrToTextDispA(sText);
-      iLen := Length(aText) + 1;
-      pText := @aText[1];
+      aStr := StrToTextDispA(sText);
+      result := @aStr[1];
+      iLen := length(aStr) + 1;
     end;
-  GetMem(result, iLen);
-  Move(pText^, result^, iLen);
 end;
 
 // Must be coherent with LLCLS_CLPB_GetTextFormat
@@ -4714,289 +4556,6 @@ begin
   else
 {$ENDIF}
     result := LLCLS_GetTextAPtr(LPCSTR(lpText));
-end;
-
-// Note: Currently for FPC, strings are always rawbytestring by default
-function LLCLS_REG_RegCreateKeyEx(hKey: HKEY; const SubKey: string; Reserved: DWORD; lpClass: PChar; dwOptions: DWORD; samDesired: REGSAM; lpSecurityAttributes: LPSECURITY_ATTRIBUTES; var phkResult: HKEY; lpdwDisposition: LPDWORD): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wSubKey, wClass: unicodestring;
-{$ELSE}
-var aSubKey, aClass: ansistring;
-{$ENDIF}
-var pClass: pointer;
-begin
-  pClass := lpClass;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      wSubKey := unicodestring(SubKey);
-      if lpClass<>nil then
-        begin
-          wClass := unicodestring(string(lpClass));
-          pClass := @wClass[1];
-        end;
-      result := RegCreateKeyExW(hKey, @wSubKey[1], Reserved, pClass, dwOptions, samDesired, lpSecurityAttributes, phkResult, lpdwDisposition);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  aSubKey := LLCLS_INI_ForceAnsi(SubKey, false);
-  if lpClass<>nil then
-    begin
-      aClass := LLCLS_INI_ForceAnsi(string(lpClass), false);
-      pClass := @aClass[1];
-    end;
-  result := RegCreateKeyExA(hKey, @aSubKey[1], Reserved, pClass, dwOptions, samDesired, lpSecurityAttributes, phkResult, lpdwDisposition);
-{$ENDIF}
-end;
-
-function LLCLS_REG_RegOpenKeyEx(hKey: HKEY; const SubKey: string; ulOptions: DWORD; samDesired: REGSAM; var phkResult: HKEY): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wSubKey: unicodestring;
-{$ELSE}
-var aSubKey: ansistring;
-{$ENDIF}
-begin
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      wSubKey := unicodestring(SubKey);
-      result := RegOpenKeyExW(hKey, @wSubKey[1], ulOptions, samDesired, phkResult);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  aSubKey := LLCLS_INI_ForceAnsi(SubKey, false);
-  result := RegOpenKeyExA(hKey, @aSubKey[1], ulOptions, samDesired, phkResult);
-{$ENDIF}
-end;
-
-function LLCLS_REG_RegQueryInfoKey(hKey: HKEY; lpClass: PChar; lpcClass: LPDWORD; lpReserved: LPDWORD; lpcSubKeys: LPDWORD; lpcMaxSubKeyLen: LPDWORD; lpcMaxClassLen: LPDWORD; lpcValues: LPDWORD; lpcMaxValueNameLen: LPDWORD; lpcMaxValueLen: LPDWORD; lpcbSecurityDescriptor: LPDWORD; lpftLastWriteTime: PFILETIME): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wClass: unicodestring;
-{$ELSE}
-var aClass: ansistring;
-{$ENDIF}
-var pClass: pointer;
-begin
-  pClass := lpClass;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      if lpClass<>nil then
-        begin
-          wClass := unicodestring(string(lpClass));
-          pClass := @wClass[1];
-        end;
-      result := RegQueryInfoKeyW(hKey, pClass, lpcClass, lpReserved, lpcSubKeys, lpcMaxSubKeyLen, lpcMaxClassLen, lpcValues, lpcMaxValueNameLen, lpcMaxValueLen, lpcbSecurityDescriptor, lpftLastWriteTime);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  if lpClass<>nil then
-    begin
-      aClass := LLCLS_INI_ForceAnsi(string(lpClass), false);
-      pClass := @aClass[1];
-    end;
-  result := RegQueryInfoKeyA(hKey, pClass, lpcClass, lpReserved, lpcSubKeys, lpcMaxSubKeyLen, lpcMaxClassLen, lpcValues, lpcMaxValueNameLen, lpcMaxValueLen, lpcbSecurityDescriptor, lpftLastWriteTime);
-{$ENDIF}
-end;
-
-function LLCLS_REG_RegEnumKeyEx(hKey: HKEY; dwIndex: DWORD; var Name: string; lpcName: LPDWORD; lpReserved: LPDWORD; lpClass: PChar; lpcClass: LPDWORD; lpftLastWriteTime: PFILETIME): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wName, wClass: unicodestring;
-{$ELSE}
-var aName, aClass: ansistring;
-{$ENDIF}
-var pClass: pointer;
-begin
-  pClass := lpClass;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      SetLength(wName, lpcName^);
-      if lpClass<>nil then
-        begin
-          wClass := unicodestring(string(lpClass));
-          pClass := @wClass[1];
-        end;
-      result := RegEnumKeyExW(hKey, dwIndex, @wName[1], lpcName, lpReserved, pClass, lpcClass, lpftLastWriteTime);
-      if result=0 then
-        Name := string(wName);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  SetLength(aName, lpcName^);
-  if lpClass<>nil then
-    begin
-      aClass := LLCLS_INI_ForceAnsi(string(lpClass), false);
-      pClass := @aClass[1];
-    end;
-  result := RegEnumKeyExA(hKey, dwIndex, @aName[1], lpcName, lpReserved, pClass, lpcClass, lpftLastWriteTime);
-  if result=0 then
-    Name := string(aName);  // No conversion
-{$ENDIF}
-end;
-
-function LLCLS_REG_RegEnumValue(hKey: HKEY; dwIndex: DWORD; var ValueName: string; lpcchValueName: LPDWORD; lpReserved: LPDWORD; lpType: LPDWORD; lpData: PBYTE; lpcbData: LPDWORD): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wValueName: unicodestring;
-{$ELSE}
-var aValueName: ansistring;
-{$ENDIF}
-begin
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      SetLength(wValueName, lpcchValueName^);
-      result := RegEnumValueW(hKey, dwIndex, @wValueName[1], lpcchValueName, lpReserved, lpType, lpData, lpcbData);
-      if result=0 then
-        ValueName := string(wValueName);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  SetLength(aValueName, lpcchValueName^);
-  result := RegEnumValueA(hKey, dwIndex, @aValueName[1], lpcchValueName, lpReserved, lpType, lpData, lpcbData);
-  if result=0 then
-    ValueName := string(aValueName);  // No conversion
-{$ENDIF}
-end;
-
-function LLCLS_REG_RegDeleteKey(hKey: HKEY; const SubKey: string): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wSubKey: unicodestring;
-{$ELSE}
-var aSubKey: ansistring;
-{$ENDIF}
-begin
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      wSubKey := unicodestring(SubKey);
-      result := RegDeleteKeyW(hKey, @wSubKey[1]);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  aSubKey := LLCLS_INI_ForceAnsi(SubKey, false);
-  result := RegDeleteKeyA(hKey, @aSubKey[1]);
-{$ENDIF}
-end;
-
-function LLCLS_REG_RegQueryValueEx(hKey: HKEY; const ValueName: string; lpReserved: LPDWORD; lpType: LPDWORD; lpData: PBYTE; lpcbData: LPDWORD): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wValueName: unicodestring;
-{$ELSE}
-var aValueName: ansistring;
-{$ENDIF}
-begin
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      wValueName := unicodestring(ValueName);
-      result := RegQueryValueExW(hKey, @wValueName[1], lpReserved, lpType, lpData, lpcbData);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  aValueName := LLCLS_INI_ForceAnsi(ValueName, false);
-  result := RegQueryValueExA(hKey, @aValueName[1], lpReserved, lpType, lpData, lpcbData);
-{$ENDIF}
-end;
-
-function LLCLS_REG_RegQueryStringValue(hKey: HKEY; const ValueName: string; lpType: LPDWORD; var Data: string): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wData: unicodestring;
-var lpwData: PUnicodeChar;  // Deal with possible terminal nul character
-{$ELSE}
-var aData: ansistring;
-var lpaData: PAnsiChar;     // Deal with possible terminal nul character
-{$ENDIF}
-var ilen: cardinal;
-begin
-  result := LLCLS_REG_RegQueryValueEx(hKey, ValueName, nil, lpType, nil, @ilen);
-  if result=0 then
-    begin
-      {$IFDEF LLCL_UNICODE_API_W_ONLY}
-      SetLength(wData, iLen);
-      lpwData := @wData[1];
-      result := LLCLS_REG_RegQueryValueEx(hKey, ValueName, nil, lpType, PBYTE(lpwData), @ilen);
-      if result=0 then
-        Data := string(unicodestring(lpwData));    // No conversion
-      {$ELSE}
-      SetLength(aData, iLen);
-      lpaData := @aData[1];
-      result := LLCLS_REG_RegQueryValueEx(hKey, ValueName, nil, lpType, PBYTE(lpaData), @ilen);
-      if result=0 then
-        Data := string(lpaData);  // No conversion
-      {$ENDIF}
-    end;
-end;
-
-function LLCLS_REG_RegSetValueEx(hKey: HKEY; const ValueName: string; Reserved: DWORD; dwType: DWORD; lpData: PBYTE; cbData: DWORD): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wValueName: unicodestring;
-{$ELSE}
-var aValueName: ansistring;
-{$ENDIF}
-begin
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      wValueName := unicodestring(ValueName);
-      result := RegSetValueExW(hKey, @wValueName[1], Reserved, dwType, lpData, cbdata);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  aValueName := LLCLS_INI_ForceAnsi(ValueName, false);
-  result := RegSetValueExA(hKey, @aValueName[1], Reserved, dwType, lpData, cbdata);
-{$ENDIF}
-end;
-
-function LLCLS_REG_RegDeleteValue(hKey: HKEY; const ValueName: string): longint;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wValueName: unicodestring;
-{$ELSE}
-var aValueName: ansistring;
-{$ENDIF}
-begin
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  if UnicodeEnabledOS then
-    begin
-      wValueName := unicodestring(ValueName);
-      result := RegDeleteValueW(hKey, @wValueName[1]);
-    end
-  else
-    result := ERROR_NOT_SUPPORTED;
-{$ELSE}
-  aValueName := LLCLS_INI_ForceAnsi(ValueName, false);
-  result := RegDeleteValueA(hKey, @aValueName[1]);
-{$ENDIF}
-end;
-
-// Must be coherent with LLCLS_REG_RegSetValueEx
-function LLCLS_REG_SetTextPtr(const sText: string; var iLen: cardinal): Pointer;
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-var wText: unicodestring;
-{$ELSE}
-var aText: ansistring;
-{$ENDIF}
-var pText: Pointer;
-begin
-{$IFDEF LLCL_UNICODE_API_W_ONLY}
-  wText := unicodestring(sText);
-  iLen := (Length(wText) + 1)*2;
-  pText := @wText[1];
-{$ELSE}
-  aText := LLCLS_INI_ForceAnsi(sText, false);
-  iLen := Length(aText) + 1;
-  pText := @aText[1];
-{$ENDIF}
-  GetMem(result, iLen);
-  Move(pText^, result^, iLen);
 end;
 
 {$IFDEF LLCL_OPT_IMGTRANSPARENT}

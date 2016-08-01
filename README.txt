@@ -42,21 +42,6 @@ the Light VCL (LVCL), with some additions and modifications.
 
 LLCL ChangeLog:
 
-* Version 1.02:
-  Main changes and additions:
-  - TRadioGroup control added (not enabled by default),
-  - TRegistry class added (Registry.pas),
-  - TClipboard: SetAsText bug fix,
-  - TStringGrid: ColCount and RowCount bug fix,
-  - bug fixes when application was starting and closing,
-  - bug fixes and non standard ItemStrings property removed
-    for internal TCustomBox class,
-  - TForm: ShowModal bug fix (with several modal forms),
-  - DeleteFile and RenameFile added (SysUtils), and also
-    DeleteFileUTF8 and RenameFileUTF8 (FileUtil/LazFileUtils),
-  - internal TMemoLines et TBoxStrings classes (for TMemo and
-    TComboBox/TListBox controls) modified for a better LCL/VCL
-    compatibility (data accessing).
 * Version 1.01:
   Main changes and additions:
   - TStringGrid control added (Grids.pas),
@@ -78,7 +63,7 @@ LLCL ChangeLog:
   - a few bug fixes and some minor additions/modifications.
   Note: controls and functionalities not enabled by default
   can be activated by defining the corresponding option(s) in
-  the option file LLCLOptions.inc.
+  the option files LLCLOptions.inc.
 
 * Version 1.00:
   - Initial public release.
@@ -125,8 +110,8 @@ modified LGPL license used for the standard LCL of Lazarus.
   The files/units present in the Ligth LCL replace the main
 standard files/units used inside the LCL/VCL: Classes,
 ClipBrd, ComCtrls, Controls, Dialogs, ExtCtrls, FileCtrl,
-Forms, Graphics, Grids, IniFiles, Menus, Registry, StdCtrls,
-SysUtils and Variants.
+Forms, Graphics, Grids, IniFiles, Menus, StdCtrls, SysUtils
+and Variants.
 
   Plus an additional unit for the VCL: XPMan.
 
@@ -211,9 +196,6 @@ Very Light VCL sources:  https://github.com/synopse/LVCL
 Free Pascal:  http://www.freepascal.org
 Lazarus:  http://www.lazarus-ide.org
 Delphi: http://www.embarcadero.com
-
-FreePascal/Lazarus forum for discussion:
-http://forum.lazarus.freepascal.org/index.php/topic,30027.0.html
 
 
 6. GENERAL NOTES
@@ -349,18 +331,16 @@ http://forum.lazarus.freepascal.org/index.php/topic,30027.0.html
 
 7.1 CONTROL CLASSES AVAILABLE
 -----------------------------
-
 Standard: TLabel, TButton, TEdit, TMemo, TCheckBox,
           TRadioButton, TGroupBox, TComboBox, TListBox,
-          TStaticText, TMainMenu, TPopupMenu, TRadioGroup
+          TStaticText, TMainMenu, TPopupMenu
 Additional: TImage,  TTrayIcon, TStringGrid
 Common: TProgressBar, TTrackBar, TXPManifest (Delphi)
 Dialogs: TOpenDialog, TSaveDialog, TSelectDirectoryDialog
          (FPC only, and not enabled by default)
 System: TTimer
 
-Other classes: TCustomForm, TForm, TClipboard, TIniFile,
-               TRegistry
+Other classes: TCustomForm, TForm, TClipboard, TIniFile
 
 General variables: Application (TApplication), Mouse(TMouse),
     Clipboard(TClipboard)
@@ -368,7 +348,6 @@ General variables: Application (TApplication), Mouse(TMouse),
 
 7.2 BASE CLASSES TREE
 ---------------------
-
                     (TObject)
                        !
                    TPersistent
@@ -390,7 +369,6 @@ TNonVisualControl*               TVisualControl*
 
 7.3 CLASSES DETAILS
 --------------------
-
   Standard public methods, properties and events available
 [rwd] options: r=read, w=write, d=design time.
 
@@ -483,24 +461,21 @@ TStringList (Classes - TObject)
 
 TStrings = TStringList
 
-TCtrlStrings (StdCtrls - TPersistent)
-  constructor Create(ParentCtrl: TWinControl);
+TMemoLines (StdCtrls - TPersistent)
+  constructor Create(Memo: TMemo);
   destructor  Destroy; override;
-  function  Add(const S: string): integer; virtual;
-  procedure Clear; virtual;
-  property  Count: integer; [r]
-Note: TCtrlStrings is specific to the LLCL
-
-TMemoLines (StdCtrls - TCtrlStrings)
-  function  Add(const S: string): integer; override;
-  procedure Clear; override;
-  property  Strings[index: integer]: string; default; [r]
+  function  Add(const S: string): integer;
+  procedure Clear;
+  property  Strings: TStrings; [rwd]
 Note: TMemoLines is specific to the LLCL
 
-TBoxStrings (SdtCtrls - TCtrlStrings)
-  function  Add(const S: string): integer; override;
-  procedure Clear; override;
-  property  Items[index: integer]: string; default; [r]
+TBoxStrings (SdtCtrls - TPersistent)
+  constructor Create(Box: TCustomBox);
+  destructor  Destroy; override;
+  function  Add(const S: string): integer;
+  procedure Clear;
+  property  Items[n: integer]: string; default; [r]
+  property  Strings: TStrings; [rw]
 Note: TBoxStrings is specific to the LLCL
 
 TCustomBox (SdtCtrls - TWinControl)
@@ -510,6 +485,7 @@ TCustomBox (SdtCtrls - TWinControl)
   property  ItemCount: integer; [r]
   property  ItemIndex: integer; [rwd]
   property  Items: TBoxStrings; [r]
+  property  ItemStrings: TStrings; [rw]
   property  Sorted: boolean; [d]
 Note: TCustomBox is specific to the LLCL
 
@@ -672,8 +648,8 @@ TComboBox (SdtCtrls - TCustomBox)
 
 TEdit (StdCtrls - TWinControl)
   constructor Create(AOwner: TComponent); override;
-  procedure SelectAll;
   property  PasswordChar: Char; [d]
+  procedure SelectAll;
   property  ReadOnly: boolean; [rwd]
   property  Text: string; [rwd]
   property  OnChange: TNotifyEvent; [rwd]
@@ -716,17 +692,6 @@ TPopupMenu (Menus - TMenu)
 TRadioButton (SdtCtrls - TCheckBox)
   constructor Create(AOwner: TComponent); override;
 
-TRadioGroup (ExtCtrls - TGroupBox)
-  constructor Create(AOwner: TComponent); override;
-  destructor  Destroy; override;
-  property  ColumnLayout: TColumnLayout; [rw] *
-  property  Columns: integer; [rw]
-  property  ItemIndex: integer; [rw]
-  property  Items: TRadioGroupStrings; [r]
-*: only for FPC/Lazarus
-Note: available only if LLCL_OPT_USERADIOGROUP is defined (see
-the option file LLCLOptions.inc)
-
 TStaticText (SdtCtrls - TWinControl)
   constructor Create(AOwner: TComponent); override;
   property  BorderStyle: boolean; [d]
@@ -734,8 +699,8 @@ TStaticText (SdtCtrls - TWinControl)
 TOpenDialog (Dialogs - TNonVisualControl)
   constructor Create(AOwner: TComponent); override;
   destructor  Destroy; override;
-  function Execute: boolean; virtual;
   property DefaultExt: string; [rwd]
+  function Execute: boolean; virtual;
   property FileName: string; [rwd]
   property Files: TStringList; [rw]
   property Filter: string; [rwd]
@@ -779,6 +744,11 @@ TStringGrid (Grids - TWinControl)
   property  DefaultRowHeight: integer; [rwd] *4
   property  FixedCols: integer; [rwd] *5
   property  FixedRows: integer; [rwd] *6
+  property  OnCompareCells: TOnCompareCells; [rwd] *3
+  property  OnGetEditText: TGetEditEvent; [rwd]
+  property  OnHeaderClick: THdrEvent; [rwd] *3
+  property  OnSelectCell: TOnSelectCellEvent; [rwd]
+  property  OnSetEditText: TSetEditEvent; [rwd]
   property  Options: TGridOptions; [rd]
   property  Row: integer; [rw]
   property  RowCount: integer; [rwd]
@@ -787,11 +757,6 @@ TStringGrid (Grids - TWinControl)
   property  Selection: TGridRect; [r]
   property  SortColumn: integer; [r] *3
   property  SortOrder: TSortOrder; [rw] *3
-  property  OnCompareCells: TOnCompareCells; [rwd] *3
-  property  OnGetEditText: TGetEditEvent; [rwd]
-  property  OnHeaderClick: THdrEvent; [rwd] *3
-  property  OnSelectCell: TOnSelectCellEvent; [rwd]
-  property  OnSetEditText: TSetEditEvent; [rwd]
 *1: only for columns (i.e. IsColumn = True)
 *2: not possible at design time for Delphi
 *3: not present in the standard Delphi VCL
@@ -827,14 +792,14 @@ TTrayIcon (ExtCtrl - TNonVisualControl)
   procedure Show;
   procedure Hide;
   procedure ShowBalloonHint;
-  property  BalloonFlags: TBalloonFlags; [rwd]
-  property  BalloonHint: string; [rwd] **
-  property  BalloonTimeout: integer; [rwd] ***
-  property  BalloonTitle: string; [rwd]
   property  Icon: TIcon; [rwd]
   property  Hint: string; [rwd]
   property  Visible: boolean; [rwd]
   property  PopUpMenu: TPopupMenu; [rwd] *
+  property  BalloonFlags: TBalloonFlags; [rwd]
+  property  BalloonHint: string; [rwd] **
+  property  BalloonTimeout: integer; [rwd] ***
+  property  BalloonTitle: string; [rwd]
   property  OnDblClick: TNotifyEvent; [rwd]
 *: Available if LLCL_OPT_USEMENUS is not undefined
 **: Balloon notifications are possible only for Windows 2000+
@@ -913,15 +878,15 @@ TStream (Classes - TObject)
   function  CopyFrom(Source: TStream; Count: integer): integer;
   procedure LoadFromFile(const FileName: string);
   procedure LoadFromStream(aStream: TStream); virtual;
+  property  Position: integer; [rw]
   function  Read(var Buffer; Count: integer): integer; virtual; abstract;
   procedure ReadBuffer(var Buffer; Count: integer);
   procedure SaveToFile(const FileName: string);
   procedure SaveToStream(aStream: TStream); virtual;
   function  Seek(Offset: integer; Origin: Word): integer; overload; virtual; abstract;
   function  Seek(Offset: int64; Origin: TSeekOrigin): int64; overload; virtual; abstract;
-  function  Write(var Buffer; Count: integer): integer; virtual; abstract;
-  property  Position: integer; [rw]
   property  Size: integer; [rw]
+  function  Write(var Buffer; Count: integer): integer; virtual; abstract;
 
 THandleStream (Classes - TStream)
   constructor Create(aHandle: THandle);
@@ -1013,35 +978,6 @@ TIniFile (IniFiles - TObject)
   procedure WriteString(const Section, Ident, Value: string); virtual;
   property  FileName: string; [r]
 Note: string date/time formats are specific in LLCL SysUtils
-
-TRegistry (Registry - TObject)
-  constructor Create; overload;
-  destructor Destroy; override;
-  procedure CloseKey;
-  function  CreateKey(const Key: string): boolean;
-  function  DeleteKey(const Key: string): boolean;
-  function  DeleteValue(const Name: string): boolean;
-  function  GetDataInfo(const ValueName: string; var Value: TRegDataInfo): boolean;
-  function  GetKeyInfo(var Value: TRegKeyInfo): boolean;
-  procedure GetKeyNames(Strings: TStrings);
-  procedure GetValueNames(Strings: TStrings);
-  function  KeyExists(const Key: string): boolean;
-  function  OpenKey(const Key: string; CanCreate: boolean): boolean;
-  function  OpenKeyReadOnly(const Key: String): boolean;
-  function  ReadBinaryData(const Name: string; var Buffer; BufSize: integer): integer;
-  function  ReadBool(const Name: string): boolean;
-  function  ReadDate(const Name: string): TDateTime;
-  function  ReadInteger(const Name: string): integer;
-  function  ReadString(const Name: string): string;
-  function  ValueExists(const Name: string): boolean;
-  procedure WriteBinaryData(const Name: string; var Buffer; BufSize: integer);
-  procedure WriteBool(const Name: string; Value: boolean);
-  procedure WriteDate(const Name: string; Value: TDateTime);
-  procedure WriteInteger(const Name: string; Value: integer);
-  procedure WriteString(const Name, Value: string);
-  property  Access: longword; [rw]
-  property  CurrentKey: HKEY; [r]
-  property  RootKey: HKEY; [rw]
 
 
 7.4 SPECIFIC NOTES

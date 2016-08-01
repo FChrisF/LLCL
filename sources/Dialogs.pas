@@ -21,7 +21,6 @@ unit Dialogs;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
    Version 1.01:
     * SelectDirectory added (for FPC/Lazarus)
     * TSelectDirectoryDialog added for FPC/Lazarus (not enabled by default - see LLCL_OPT_USESELECTDIRECTORYDIALOG in LLCLOptions.inc)

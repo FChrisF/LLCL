@@ -21,9 +21,6 @@ unit Controls;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
-    * Some improvements for controls created at runtime
-    * Support for TRadioGroup
    Version 1.01:
     * Bug fix and modification: background color support
     * TStringGrid and TSelectDirectoryDialog control types added
@@ -116,7 +113,7 @@ type
     ATTRadioButton, ATTGroupBox, ATTMemo, ATTComboBox, ATTListBox, ATTStaticText,
     ATTImage, ATTProgressBar, ATTTrackBar, ATTMenuItem, ATTMainMenu, ATTPopupMenu,
     ATTTimer, ATTTrayIcon, ATTOpenDialog, ATTSaveDialog, ATTSelectDirectoryDialog,
-    ATTStringGrid, ATTRadioGroup);    // (ATTRadioGroup not used)
+    ATTStringGrid);
 
   TMouseButton = (mbLeft, mbRight, mbMiddle);
 
@@ -229,7 +226,7 @@ type
     property  Color: integer read fColor write SetColor;
     property  Transparent: boolean read fTransparent write fTransparent;
     property  Caption: string read fCaption write SetCaption;
-    property  Alignment: TAlignment read fAlignment write fAlignment;   // Runtime modification ignored; write present only for dynamical control creation purpose
+    property  Alignment: TAlignment read fAlignment write fAlignment;   // Run-time modification ignored; write present only for dynamical control creation purpose
     property  Visible: boolean read fVisible write SetVisible;
     property  AutoSize: boolean read fAutoSize write fAutoSize;
     property  ParentFont: boolean read fParentFont write fParentFont;
@@ -313,7 +310,7 @@ type
     procedure SetCaption(const Value: string); override;
     function  GetTabOrder(): integer;
     procedure SetTabOrder(Value: integer);
-    procedure ClickCall(ChangeFocus: boolean; DoSetFocus: boolean); virtual;
+    procedure ClickCall(ChangeFocus: boolean; DoSetFocus: boolean);
     function  ColorCall(var Msg: TWMCtlColorStatic): boolean;
     function  ColorForSubCont(SubContMsg: integer; SubConthWnd: THandle): boolean; virtual;
     procedure FormFocus();
@@ -337,7 +334,7 @@ type
 //    procedure WMSysCommand(var Msg: TWMSysCommand); message WM_SYSCOMMAND;  // Used in Forms, if "top invisible" form (but not here)
 //    procedure WMNCActivate(var Msg: TWMNCActivate); message WM_NCACTIVATE;  // Used in Forms, if "top invisible" form (but not here)
     procedure WMPaint(var Msg: TWMPaint); message WM_PAINT;
-    procedure WMDestroy(var Msg: TWMDestroy); message WM_DESTROY;
+    procedure WMDestroy(var Msg: TWMDestroy); message WM_DESTROY;     // Used also in Forms
 //    procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;  // Used in Forms (but not here)
     procedure WMSetFocus(var Msg: TWMSetFocus); message WM_SETFOCUS;  // Used also in StdCtrls and Forms
     procedure WMEraseBkGnd(var Msg: TWMEraseBkGnd); message WM_ERASEBKGND;
@@ -936,20 +933,16 @@ end;
 procedure TWinControl.SetColor(Value: integer);
 begin
   inherited;
-  if fHandle=0 then exit;   // (may be called in create constructor)
   if ATType in TContainControls then
-    LLCL_RedrawWindow(fHandle, nil, 0, RDW_INVALIDATE or RDW_ALLCHILDREN);
-  LLCL_InvalidateRect(fHandle, nil, true);
+    LLCL_RedrawWindow(Handle, nil, 0, RDW_INVALIDATE or RDW_ALLCHILDREN);
+  LLCL_InvalidateRect(Handle, nil, true);
 end;
 
 procedure TWinControl.SetCaption(const Value: string);
 begin
   inherited;
-  if fHandle=0 then exit;   // (later when created at runtime)
-    begin
-      UpdTextSize(Value);
-      LLCLS_SendMessageSetText(fHandle, WM_SETTEXT, Value);
-    end;
+  UpdTextSize(Value);
+  LLCLS_SendMessageSetText(fHandle, WM_SETTEXT, Value);
 end;
 
 function TWinControl.GetTabOrder(): integer;
@@ -1074,7 +1067,6 @@ end;
 procedure TWinControl.SetEnabled(Value: boolean);
 begin
   fEnabled := Value;
-  if fHandle=0 then exit;   // (later when created at runtime)
   LLCL_EnableWindow(fHandle, Value);
   if (not Value) and Focused() then
     NewFormFocus(tftNextGroup);
@@ -1436,18 +1428,18 @@ end;
 procedure TWinControl.Update;
 begin
   // (No inherited)
-  LLCL_UpdateWindow(fHandle);
+  LLCL_UpdateWindow(Handle);
 end;
 
 function TWinControl.ClientRect(): TRect;
 begin
-  LLCL_GetClientRect(fHandle, result);
+  LLCL_GetClientRect(Handle, result);
 end;
 
 procedure TWinControl.Show;
 begin
   inherited;
-  if fHandle=0 then exit;   // (later when created at runtime)
+  HandleNeeded;
   LLCL_ShowWindow(fHandle, fShowCommand);
   if Assigned(EOnShow) then
     EOnShow(self);
@@ -1456,7 +1448,7 @@ end;
 procedure TWinControl.Hide;
 begin
   inherited;
-  if fHandle=0 then exit;   // (later when created at runtime)
+  HandleNeeded;
   LLCL_ShowWindow(fHandle, SW_HIDE);
   if Focused() then
     NewFormFocus(tftNextGroup);
@@ -1485,7 +1477,7 @@ procedure TWinControl.SetFocus();
 begin
   if CanFocus() then
     begin
-      LLCL_SetFocus(fHandle);
+      LLCL_SetFocus(Handle);
       UpdateFormFocus();
     end;
 end;
@@ -1493,14 +1485,13 @@ end;
 procedure TWinControl.SetBounds(ALeft, ATop, AWidth, AHeight: integer);
 begin
   inherited;
-  if fHandle=0 then exit;   // (later when created at runtime)
   if ATType<>ATTCustomForm then     // Done inside Forms for them
-    LLCL_MoveWindow(fHandle, ALeft, ATop, AWidth, AHeight, true);
+    LLCL_MoveWindow(Handle, ALeft, ATop, AWidth, AHeight, true);
 end;
 
 procedure TWinControl.BringToFront;
 begin
-  LLCL_SetForegroundWindow(fHandle);
+  LLCL_SetForegroundWindow(Handle);
 end;
 
 procedure TWinControl.WMLButtonDown(var Msg: TWMLButtonDown);

@@ -21,8 +21,6 @@ unit SysUtils;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
-    * DeleteFile and RenameFile added
    Version 1.01:
     * Some (irrelevant) Kylix code removed
     * StrToInt64/StrToInt64Def/TryStrToInt64 added
@@ -393,8 +391,6 @@ function  FileAge(const FileName: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}st
 function  FileSetDate(Handle: THandle; Age: integer): integer; overload;
 function  FileAge(const FileName: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}string{$ENDIF}; out FileDateTime: TDateTime): boolean; overload;
 function  GetFileVersion(const aFileName: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}string{$ENDIF}): cardinal; {$IFDEF LLCL_FPC_UNISYS}overload;{$ENDIF}  // (Only a string version in LCL)
-function  DeleteFile(const FileName: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}string{$ENDIF}): boolean; {$IFDEF LLCL_FPC_UNISYS}overload;{$ENDIF}
-function  RenameFile(const OldName, NewName: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}string{$ENDIF}): boolean; {$IFDEF LLCL_FPC_UNISYS}overload;{$ENDIF}
 {$endif}
 
 function  FindFirst(const Path: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}string{$ENDIF}; Attr: integer; var F: {$IFDEF LLCL_FPC_UNISYS}TUnicodeSearchRec{$ELSE}TSearchRec{$ENDIF}): integer; {$IFDEF LLCL_FPC_UNISYS}overload;{$ENDIF}
@@ -462,8 +458,6 @@ function  FileSetDate(const FileName: rawbytestring; Age: integer): integer; ove
 function  FileAge(const FileName: rawbytestring): integer; overload;
 function  FileAge(const FileName: rawbytestring; out FileDateTime: TDateTime): boolean; overload;
 function  GetFileVersion(const aFileName: rawbytestring): cardinal; overload; // (Only a string version in LCL)
-function  DeleteFile(const FileName: rawbytestring): boolean; overload;
-function  RenameFile(const OldName, NewName: rawbytestring): boolean; overload;
 
 function  FindFirst(const Path: rawbytestring; Attr: integer; var F: TRawByteSearchRec): integer; overload;
 function  FindNext(var F: TRawByteSearchRec): integer; overload;
@@ -2720,18 +2714,6 @@ begin
     end;
 end;
 
-function  DeleteFile(const FileName: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}string{$ENDIF}): boolean; {$IFDEF LLCL_FPC_UNISYS}overload;{$ENDIF}
-begin
-  result := {$IFDEF LLCL_FPC_SYSRTL}LLCLSys_DeleteFile{$ELSE}LLCL_DeleteFile{$ENDIF}
-      (@FileName[1]);
-end;
-
-function  RenameFile(const OldName, NewName: {$IFDEF LLCL_FPC_UNISYS}unicodestring{$ELSE}string{$ENDIF}): boolean; {$IFDEF LLCL_FPC_UNISYS}overload;{$ENDIF}
-begin
-  result := {$IFDEF LLCL_FPC_SYSRTL}LLCLSys_MoveFile{$ELSE}LLCL_MoveFile{$ENDIF}
-      (@OldName[1], @NewName[1]);
-end;
-
 {$else}     // Linux version of the code:
 
 function  FileCreate(const FileName: string): integer;
@@ -2862,16 +2844,6 @@ end;
 function  GetFileVersion(const aFileName: rawbytestring): cardinal; overload;
 begin
   result := GetFileVersion(unicodestring(aFileName));
-end;
-
-function  DeleteFile(const FileName: rawbytestring): boolean; overload;
-begin
-  result := DeleteFile(unicodestring(FileName));
-end;
-
-function  RenameFile(const OldName, NewName: rawbytestring): boolean; overload;
-begin
-  result := RenameFile(unicodestring(OldName), unicodestring(NewName));
 end;
 
 {$ENDIF LLCL_FPC_UNISYS}

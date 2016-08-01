@@ -21,7 +21,6 @@ unit Graphics;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
    Version 1.01:
     * TBitmap: PNG files support added (not enabled by default - see LLCL_OPT_PNGSUPPORT/LLCL_OPT_PNGSIMPLIFIED in LLCLOptions.inc)
     * TBitmap: transparent bitmap support added (not enabled by default - see LLCL_OPT_IMGTRANSPARENT in LLCLOptions.inc)

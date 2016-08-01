@@ -21,8 +21,6 @@ unit FileUtil;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
-    * DeleteFileUTF8 and RenameFileUTF8 added
    Version 1.01:
    Version 1.00:
     * File creation.
@@ -63,8 +61,6 @@ function  DirectoryExistsUTF8(const Directory: string): boolean;
 function  ForceDirectoriesUTF8(const Dir: string): boolean;
 function  CreateDirUTF8(const Dir: string): boolean;
 function  RemoveDirUTF8(const Dir: string): boolean;
-function  DeleteFileUTF8(const FileName: string): boolean;
-function  RenameFileUTF8(const OldName, NewName: string): boolean;
 // (No GetFileVersionUTF8 function)
 
 function  SysErrorMessageUTF8(ErrorCode: integer): string;
@@ -162,16 +158,6 @@ end;
 function  RemoveDirUTF8(const Dir: string): boolean;
 begin
   result := LazFileUtils.RemoveDirUTF8(Dir);
-end;
-
-function  DeleteFileUTF8(const FileName: string): boolean;
-begin
-  result := LazFileUtils.DeleteFileUTF8(FileName);
-end;
-
-function  RenameFileUTF8(const OldName, NewName: string): boolean;
-begin
-  result := LazFileUtils.RenameFileUTF8(OldName, NewName);
 end;
 
 //------------------------------------------------------------------------------

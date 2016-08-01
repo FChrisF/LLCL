@@ -21,11 +21,6 @@ unit StdCtrls;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
-    * TCustomBox (TComboBox, TListBox): bug fix for ItemIndex
-    * TCustomBox (TComboBox, TListBox): non standard ItemStrings property removed
-    * Non standard TMemoLines and TBoxStrings classes modified (inherit from internal and non standard TCtrlStrings class)
-    * Some properties/methods wrongly protected moved in private parts
    Version 1.01:
     * Modification: background color support
     * TWinControl: notifications for child controls modified
@@ -113,34 +108,18 @@ uses
   Classes, Controls;
 
 type
-  TCtrlStrings = class(TPersistent)   // Very limited support
-  private                             //   Only methods: Add, Clear
-    fStringList: TStringList;         //   Only properties (read): Count, StringList[i]
-  protected
-    fParentCtrl: TWinControl;
-    procedure ReadProperty(const PropName: string; Reader: TReader); override;
-    function  GetString(index: integer): string; virtual;
-    function  GetCount(): integer; virtual;
-  public
-    constructor Create(ParentCtrl: TWinControl);
-    destructor  Destroy; override;
-    function  Add(const S: string): integer; virtual;
-    procedure Clear; virtual;
-    property  Count: integer read GetCount;
-  end;
-
 {$ifdef LLCL_OPT_STDLABEL}
   TLabel = class(TGraphicControl)
   private
     fWordWrap: boolean;
     procedure PaintText(AddFlags: cardinal; var R: TRect);
-    procedure UpdateTextSize();
   protected
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     procedure ControlInit(RuntimeCreate: boolean); override;
     procedure SetColor(Value: integer); override;
     procedure SetCaption(const Value: string); override;
     procedure Paint; override;
+    procedure UpdateTextSize();
   public
     constructor Create(AOwner: TComponent); override;
     property  WordWrap: boolean read fWordWrap write fWordWrap; // Run-time modification ignored; write present only for dynamical control creation purpose
@@ -171,12 +150,12 @@ type
     fOnChangeOK: boolean;
     EOnChange: TNotifyEvent;
     procedure SetReadOnly(Value: boolean);
-    function  GetText(): string;
-    procedure SetText(const Value: string);
   protected
     procedure CreateHandle; override;
     procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
+    function  GetText(): string;
+    procedure SetText(const Value: string);
     function  ComponentNotif(var Msg: TMessage): boolean; override;
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; override;
     procedure WMSetFocus(var Msg: TWMSetFocus); message WM_SETFOCUS;
@@ -189,28 +168,31 @@ type
     property  OnChange: TNotifyEvent read EOnChange write EOnChange;
   end;
 
-  TMemoLines = class(TCtrlStrings)    // (not standard)
-  private
-    procedure GetControlText;
-  protected
-    function  GetString(index: integer): string; override;
-    function  GetCount(): integer; override;
+  TMemo = class;
+
+  TMemoLines = class(TPersistent)   // For a limited support of Memo.Lines
+  protected                         //
+    fMemo: TMemo;                   //   Currently, only: Add, Clear methods
+    fStrings: TStringList;          //     and: Strings property when loaded
+    procedure SetStrings(StringList: TStrings);
+    procedure ReadProperty(const PropName: string; Reader: TReader); override;
   public
-    function  Add(const S: string): integer; override;
-    procedure Clear; override;
-    property  Strings[index: integer]: string read GetString; default;
+    constructor Create(Memo: TMemo);
+    destructor  Destroy; override;
+    function  Add(const S: string): integer;
+    procedure Clear;
+    property  Strings: TStrings read fStrings write SetStrings;
   end;
 
   TScrollStyle = (ssNone, ssHorizontal, ssVertical, ssBoth);
 
   TMemo = class(TEdit)
-  private
+  protected
     fScrollBars: TScrollStyle;
     fWordWrap: boolean;
     fLines: TMemoLines;
     fWantReturns: boolean;
     fWantTabs: boolean;
-  protected
     procedure CreateHandle; override;
     procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
@@ -252,7 +234,7 @@ type
     property  AllowGrayed: boolean read fAllowGrayed write SetAllowGrayed;
   end;
 
-  TRadioButton = class(TCheckBox)     //should be vice versa
+  TRadioButton = class(TCheckBox) //should be vice versa
   protected
     procedure CreateParams(var Params: TCreateParams); override;
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; override;
@@ -271,16 +253,28 @@ type
     constructor Create(AOwner: TComponent); override;
   end;
 
-  TBoxStrings = class(TCtrlStrings)   // (not standard)
+  TCustomBox = class;
+
+  TBoxStrings = class(TPersistent)
+  protected
+    fBox: TCustomBox;
+    fStrings: TStringList;
+    procedure SetStrings(StringList: TStrings);
+    procedure ReadProperty(const PropName: string; Reader: TReader); override;
+    function  GetItem(n: integer): string;
   public
-    function  Add(const S: string): integer; override;
-    procedure Clear; override;
-    property  Items[index: integer]: string read GetString; default;
+    constructor Create(Box: TCustomBox);
+    destructor  Destroy; override;
+    function  Add(const S: string): integer;
+    procedure Clear;
+    property  Strings: TStrings read fStrings write SetStrings;
+    property  Items[n: integer]: string read GetItem; default;
   end;
 
   TCustomBox = class(TWinControl)
   private
     fCreateFlags:  cardinal;
+  protected
     fAddLineMsg:   cardinal;
     fResetMsg:     cardinal;
     fGetIndexMsg:  cardinal;
@@ -290,9 +284,10 @@ type
     fItems: TBoxStrings;
     fItemIndex: integer;
     fSorted: boolean;
+    function  GetItems(): TStrings;
+    procedure SetItems(AItems: TStrings);
     function  GetCount(): integer; virtual;
     procedure SetItemIndex(Value: integer); virtual;
-  protected
     procedure CreateHandle; override;
     procedure CreateParams(var Params: TCreateParams); override;
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
@@ -304,6 +299,7 @@ type
     property  Items: TBoxStrings read fItems;
     property  ItemCount: integer read GetCount;
     property  ItemIndex: integer read fItemIndex write SetItemIndex;
+    property  ItemStrings: TStrings read GetItems write SetItems;
     property  Sorted: boolean read fSorted write fSorted;       // Run-time modification ignored; write present only for dynamical control creation purpose
   end;
 
@@ -324,12 +320,12 @@ type
     procedure SetDroppedDown(Value: boolean);
     function  IsListDroppedDown(): boolean;
     procedure CallOnChange;
-    function  GetText(): string;
-    procedure SetText(const Value: string);
   protected
     procedure ReadProperty(const PropName: string; Reader: TReader); override;
     procedure CreateHandle; override;
     procedure CreateParams(var Params: TCreateParams); override;
+    function  GetText(): string;
+    procedure SetText(const Value: string);
     function  ColorForSubCont(SubContMsg: integer; SubConthWnd: THandle): boolean; override;
     function  ComponentNotif(var Msg: TMessage): boolean; override;
     function  SpecialKeyProcess(var CharCode: Word): TKeyProcess; override;
@@ -383,10 +379,8 @@ uses
 
 type
   TPCustomForm = class(TCustomForm);  // To access to protected part
-{$ifdef LLCL_OPT_STDLABEL}
   TPCanvas = class(TCanvas);          // To access to protected part
-{$endif}
-  TPWinControl = class(TWincontrol);  // To access to protected part
+  TPComboBox = class(TComboBox);      // To access to protected part
 
 const
   BUTTON_CTRLCLASS    = 'BUTTON';
@@ -404,50 +398,6 @@ begin
   result := false;
 end;
 {$ENDIF FPC}
-
-{ TCtrlStrings }
-
-constructor TCtrlStrings.Create(ParentCtrl: TWinControl);
-begin
-  inherited Create;
-  fStringList := TStringList.Create;
-  fParentCtrl := ParentCtrl;
-end;
-
-destructor TCtrlStrings.Destroy;
-begin
-  fStringList.Free;
-  inherited;
-end;
-
-procedure TCtrlStrings.ReadProperty(const PropName: string; Reader: TReader);
-const Properties: array[0..0] of PChar = ('Strings');
-begin
-  case StringIndex(PropName, Properties) of
-    0 : Reader.ReadStrings(fStringList);
-    else inherited;
-  end;
-end;
-
-function TCtrlStrings.Add(const S: string): integer;
-begin
-  result := fStringList.Add(S);
-end;
-
-procedure TCtrlStrings.Clear;
-begin
-  fStringList.Clear;
-end;
-
-function TCtrlStrings.GetCount(): integer;
-begin
-  result := fStringList.Count;
-end;
-
-function TCtrlStrings.GetString(index: integer): string;
-begin
-  result := fStringList[index];
-end;
 
 { TButton }
 
@@ -572,7 +522,6 @@ end;
 function TEdit.GetText(): string;
 begin
   result := LLCLS_SendMessageGetText(Handle);
-  // (Lines in Memo not synchronized for better performance)
 end;
 
 procedure TEdit.ReadProperty(const PropName: string; Reader: TReader);
@@ -606,49 +555,53 @@ end;
 procedure TEdit.SetText(const Value: string);
 begin
   Caption := Value;
-  // (Lines in Memo not synchronized for better performance)
 end;
 
 { TMemoLines }
 
-procedure TMemoLines.GetControlText;
-var s1: string;
+constructor TMemoLines.Create(Memo: TMemo);
 begin
-  s1 := TMemo(fParentCtrl).GetText;
-  if s1<>TMemo(fParentCtrl).Caption then
-    begin
-      TMemo(fParentCtrl).SetText(s1);
-      fStringList.Text := s1;
-    end;
+  inherited Create;
+  fStrings := TStringList.Create;
+  fMemo := Memo;
+end;
+
+procedure TMemoLines.ReadProperty(const PropName: string; Reader: TReader);
+const Properties: array[0..0] of PChar = ('Strings');
+begin
+  case StringIndex(PropName, Properties) of
+    0 : Reader.ReadStrings(fStrings);
+    else inherited;
+  end;
+end;
+
+procedure TMemoLines.SetStrings(StringList: TStrings);
+begin
+  if StringList = fStrings then exit;
+  fStrings := StringList;
 end;
 
 function TMemoLines.Add(const S: string): integer;
 var len: integer;
 var SS: string;
 begin
-  len := LLCL_SendMessage(fParentCtrl.Handle, WM_GETTEXTLENGTH, 0, 0);
-  LLCL_SendMessage(fParentCtrl.Handle, EM_SETSEL, WPARAM(len), LPARAM(len));
-  SS := S + sLineBreak;
-  LLCLS_SendMessageSetText(fParentCtrl.Handle, EM_REPLACESEL, SS);
-  result := inherited Add(S);
+  len := LLCL_SendMessage(fMemo.Handle, WM_GETTEXTLENGTH, 0, 0);
+  LLCL_SendMessage(fMemo.Handle, EM_SETSEL, WPARAM(len), LPARAM(len));
+  SS := S+sLineBreak;
+  LLCLS_SendMessageSetText(fMemo.Handle, EM_REPLACESEL, SS);
+  result := fStrings.Add(S);
 end;
 
 procedure TMemoLines.Clear;
 begin
-  LLCL_SendMessage(fParentCtrl.Handle, WM_SETTEXT, 0, 0);     // LLCLS_SendMessageSetText not used here
+  LLCL_SendMessage(fMemo.Handle, WM_SETTEXT, 0, 0);     // LLCLS_SendMessageSetText not used here
+  fStrings.Clear;
+end;
+
+destructor TMemoLines.Destroy;
+begin
+  fStrings.Free;
   inherited;
-end;
-
-function TMemoLines.GetString(index: integer): string;
-begin
-  GetControlText;
-  result := inherited GetString(index);
-end;
-
-function TMemoLines.GetCount(): integer;
-begin
-  GetControlText;
-  result := inherited GetCount();
 end;
 
 { TMemo }
@@ -678,7 +631,7 @@ end;
 procedure TMemo.CreateHandle;
 begin
   inherited;
-  SetText(fLines.fStringList.Text);
+  SetText(fLines.Strings.Text);
 end;
 
 procedure TMemo.CreateParams(var Params: TCreateParams);
@@ -949,6 +902,13 @@ begin
   end;
 end;
 
+procedure TLabel.Paint;
+var R: TRect;
+begin
+  R := ClientRect();
+  PaintText(0, R);
+end;
+
 procedure TLabel.UpdateTextSize();
 var R: TRect;
 begin
@@ -958,13 +918,6 @@ begin
   PaintText(DT_CALCRECT, R);                    // No update, only size compute
   LLCL_ReleaseDC(Parent.Handle, Canvas.Handle);
   SetBounds(Left, Top, R.Right-Left, R.Bottom-Top);
-end;
-
-procedure TLabel.Paint;
-var R: TRect;
-begin
-  R := ClientRect();
-  PaintText(0, R);
 end;
 
 procedure TLabel.SetColor(Value: integer);
@@ -985,24 +938,60 @@ end;
 
 { TBoxStrings }
 
+constructor TBoxStrings.Create(Box: TCustomBox);
+begin
+  inherited Create;
+  fStrings := TStringList.Create;
+  fBox := Box;
+end;
+
+destructor TBoxStrings.Destroy;
+begin
+  fStrings.Free;
+  inherited;
+end;
+
 function TBoxStrings.Add(const S: string): integer;
 begin
-  LLCLS_SendMessageSetText(fParentCtrl.Handle, TCustomBox(fParentCtrl).fAddLineMsg, S);
-  result := inherited Add(S);
+  fStrings.Add(S);
+  result := LLCLS_SendMessageSetText(fBox.Handle, fBox.fAddLineMsg, S);
 end;
 
 procedure TBoxStrings.Clear;
 var s: string;
 begin
-  if TPWinControl(fParentCtrl).ATType=ATTComboBox then
-    s := LLCLS_SendMessageGetText(fParentCtrl.Handle)
+  fStrings.Clear;
+  if fbox.ATType=ATTComboBox then
+    s := LLCLS_SendMessageGetText(fBox.Handle)
   else
     s := ''; // (to avoid compilation warning)
-  LLCL_SendMessage(fParentCtrl.Handle, cardinal(TCustomBox(fParentCtrl).fResetMsg), 0, 0);  // LLCLS_SendMessageSetText not used here
-  if TPWinControl(fParentCtrl).ATType=ATTComboBox then
-    LLCLS_SendMessageSetText(fParentCtrl.Handle, WM_SETTEXT, s);
-  TCustomBox(fParentCtrl).fItemIndex := -1;
-  inherited;
+  LLCL_SendMessage(fBox.Handle, cardinal(fBox.fResetMsg), 0, 0);  // LLCLS_SendMessageSetText not used here
+  if fbox.ATType=ATTComboBox then
+    LLCLS_SendMessageSetText(fBox.Handle, WM_SETTEXT, s);
+end;
+
+procedure TBoxStrings.SetStrings(StringList: TStrings);
+// seems to be very unoptimal, but there's no TStringList.Assign !
+var i: integer;
+begin
+  if StringList = fStrings then exit;
+  Clear;
+  for i := 0 to StringList.Count-1 do
+    Add(StringList[i]);
+end;
+
+function TBoxStrings.GetItem(n: integer): string;
+begin
+  result := fStrings[n];
+end;
+
+procedure TBoxStrings.ReadProperty(const PropName: string; Reader: TReader);
+const Properties: array[0..0] of PChar = ('Strings');
+begin
+  case StringIndex(PropName, Properties) of
+    0 : Reader.ReadStrings(fStrings);
+    else inherited;
+  end;
 end;
 
 { TCustomBox }
@@ -1017,11 +1006,11 @@ begin
 end;
 
 procedure TCustomBox.CreateHandle;
-var i: integer;
+  var i: integer;
 begin
   inherited;
-  for i := 0 to (fItems.Count - 1) do
-    LLCLS_SendMessageSetText(Handle, fAddLineMsg, fItems[i]);
+  for i := 0 to fItems.Strings.Count-1 do
+    LLCLS_SendMessageSetText(Handle, fAddLineMsg, fItems.Strings[i]);
   SetItemIndex(fItemIndex);
 end;
 
@@ -1042,9 +1031,8 @@ end;
 
 procedure TCustomBox.Clear;
 begin
-  fItems.Clear;
-  if ATType=ATTComboBox then
-    TComboBox(self).Text := '';
+  fItems.fStrings.Clear;
+  LLCL_SendMessage(Handle, cardinal(fResetMsg), 0, 0);  // LLCLS_SendMessageSetText not used here
 end;
 
 destructor TCustomBox.Destroy;
@@ -1053,9 +1041,20 @@ begin
   inherited;
 end;
 
+function TCustomBox.GetItems(): TStrings;
+begin
+  result := fItems.Strings;
+end;
+
+procedure TCustomBox.SetItems(AItems: TStrings);
+begin
+  fItems.Strings := AItems;
+end;
+
 function TCustomBox.GetCount(): integer;
 begin
   result := LLCL_SendMessage(Handle, cardinal(fGetCountMsg), 0, 0);
+  Assert(result = fItems.Strings.Count);
 end;
 
 procedure TCustomBox.SetItemIndex(Value: integer);
@@ -1093,10 +1092,10 @@ begin
   dsp.wParam := WPARAM(awParam);
   dsp.lParam := LPARAM(alParam);
   dsp.result := 0;
-  TComboBox(obj).KeyboardMsg := 1;
+  TPComboBox(obj).KeyboardMsg := 1;
   obj.Dispatch(dsp);
-  result := (TComboBox(obj).KeyboardMsg=2);    // Do not PostProcess
-  TComboBox(obj).KeyboardMsg := 0;
+  result := (TPComboBox(obj).KeyboardMsg=2);    // Do not PostProcess
+  TPComboBox(obj).KeyboardMsg := 0;
   awParam := dsp.wParam;    // This parameter may be changed in keyboard messages
 end;
 

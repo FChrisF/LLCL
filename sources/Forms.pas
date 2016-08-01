@@ -21,9 +21,6 @@ unit Forms;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
-    * Bug fix for ShowModal in TCustomForm
-    * Modifications and bug fix when application is terminating
    Version 1.01:
     * Bug fix: Color in TCustomForm
     * TForm: 'BorderStyle', 'Position' and 'FormStyle' properties now accessible (design time only)
@@ -98,7 +95,7 @@ uses
   Classes, SysUtils, Controls, {$ifdef LLCL_OPT_USEMENUS}Menus,{$endif} Graphics;
 
 const
-  LLCLVersion = 0102;                 // Can be tested {$IF Declared(...)}
+  LLCLVersion = 0100;                 // Can be tested {$IF Declared(...)}
   LLCLOSType  = 'WIN';                //    in user's programs
 
 type
@@ -155,6 +152,7 @@ type
     procedure CallOnPaint;
     procedure WMActivate(var Msg: TWMActivate); message WM_ACTIVATE;
     procedure WMSetFocus(var Msg: TWMSetFocus); message WM_SETFOCUS;
+    procedure WMDestroy(var Msg: TWMDestroy); message WM_DESTROY;
     procedure WMClose(var Msg: TWMClose); message WM_CLOSE;
     {$ifdef LLCL_OPT_USEMENUS}
     procedure WMCommand(var Msg: TWMCommand); message WM_COMMAND;
@@ -205,7 +203,6 @@ type
     fIcon: TIcon;
     fNonClientMetrics: TCustomNonClientMetrics;
     fTerminated: boolean;
-    fPostQuitDone: boolean;
     fMainForm: TCustomForm;
     fShowMainForm: boolean;
     fTitle: string;
@@ -232,7 +229,6 @@ type
     procedure ModalFormsRestore(ActiveWindowHandle: THandle; var FormsStateList: TList);
     {$ifdef LLCL_OPT_TOPFORM}
     procedure SetVisible(ShowCall: boolean);
-    function  TopHandle(): THandle;
     {$endif}
   protected
     function  AppHandle(): THandle;
@@ -365,6 +361,7 @@ destructor TCustomForm.Destroy;
 begin
   if Assigned(EOnDestroy) then
     EOnDestroy(Self);
+  LLCL_DestroyWindow(Handle);
   inherited;
 end;
 
@@ -519,7 +516,13 @@ begin
       Style := cfStyle;                             // Replaced
       ExStyle := cfExStyle or WS_EX_CONTROLPARENT;  //  "  "
       {$ifdef LLCL_OPT_TOPFORM}
-      WndParent := Application.TopHandle();
+      if Application.fMainFormOnTaskBar then
+        begin
+          if Application.MainForm<>nil then     // (Not if is creating MainForm)
+            WndParent := Application.Mainform.Handle;
+        end
+      else
+        WndParent := Application.AppHandle();
       {$endif}
       WinClassName := TFORM_CLASS;
     end;
@@ -651,9 +654,16 @@ begin
   FormFocus();
 end;
 
+procedure TCustomForm.WMDestroy(var Msg: TWMDestroy);
+begin
+  inherited;
+  if self=Application.MainForm then
+    LLCL_PostQuitMessage(0);
+end;
+
 procedure TCustomForm.WMClose(var Msg: TWMClose);
 begin
-  // (No inherited, except when application is terminating)
+  // (No inherited, except for the second MainForm time)
   if Application.Terminated then
     inherited
   else
@@ -775,20 +785,13 @@ begin
 end;
 
 destructor TApplication.Destroy;
-{$ifndef LLCL_OPT_TOPFORM}
-var i: integer;
-{$endif}
 begin
   fIcon.Free;
+  LLCL_UnregisterClass(TFORM_CLASS, hInstance);
   {$ifdef LLCL_OPT_TOPFORM}
   LLCL_SetWindowLongPtr(fHandle, GWL_WNDPROC, NativeUInt(@LLCL_DefWindowProc));
-  LLCL_DestroyWindow(TopHandle());
   LLCL_UnregisterClass(TAPPL_CLASS, hInstance);
-  {$else}
-  for i := 0 to (Components.Count - 1) do
-    LLCL_DestroyWindow(TWincontrol(Components[i]).Handle);
   {$endif}
-  LLCL_UnregisterClass(TFORM_CLASS, hInstance);
   inherited;
 end;
 
@@ -829,6 +832,8 @@ begin
       SC_MINIMIZE: begin Application.Minimize; exit; end;
       SC_RESTORE: begin Application.Restore; exit; end;
     end;
+  WM_QUIT:
+    Application.Terminate;
   end;
   result := LLCL_DefWindowProc(hWnd, Msg, wParam, lParam);
 end;
@@ -894,21 +899,6 @@ begin
   {$endif}
 end;
 
-{$ifdef LLCL_OPT_TOPFORM}
-function TApplication.TopHandle(): THandle;
-begin
-  if fMainFormOnTaskBar then
-    begin
-      if MainForm<>nil then     // (Not if is creating MainForm)
-        result := Mainform.Handle
-      else
-        result := 0;
-    end
-  else
-    result := fHandle;    // AppHandle()
-end;
-{$endif}
-
 procedure TApplication.SetTitle(const Value: string);
 begin
   fTitle := Value;
@@ -954,7 +944,8 @@ begin
     with TCustomForm(Components[i]) do
       begin
         FormsStateList.Add(pointer(nativeuint(Enabled)));  // (Ugly hack)
-        Enabled := (Handle=ShowWindowHandle);
+        if Handle<>ShowWindowHandle then
+          Enabled := false;
       end;
   {$else}
   if result<>0 then
@@ -1028,11 +1019,8 @@ procedure TApplication.ProcessMessages;
 var msg: TMsg;
 begin
   while LLCL_PeekMessage(msg, 0, 0, 0, PM_REMOVE) do
-    if Msg.Message=WM_QUIT then
-      begin
-        fTerminated := true;
-        break;
-      end
+    if (Msg.Message=WM_QUIT) and (self<>nil) then
+      fTerminated := true
     else
       begin
         LLCL_TranslateMessage(Msg);
@@ -1042,10 +1030,10 @@ end;
 
 procedure TApplication.Terminate;
 begin
-  if not fPostQuitDone then
+  if not fTerminated then
     begin
-      fPostQuitDone := true;
-      LLCL_PostQuitMessage(0);
+      fTerminated := true;
+      LLCL_PostMessage(fMainForm.Handle, WM_CLOSE, 0, 0);    // Post or re-Post it
     end;
 end;
 

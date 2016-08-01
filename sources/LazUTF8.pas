@@ -21,7 +21,6 @@ unit LazUTF8;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
    Version 1.01:
     * UTF8CompareStr, UTF8CompareText, UTF8LowerCase and UTF8UpperCase added
    Version 1.00:

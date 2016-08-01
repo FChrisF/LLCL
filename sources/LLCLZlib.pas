@@ -21,7 +21,6 @@ unit LLCLZlib;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
    Version 1.01:
     * File creation.
     * Zlib interface for the Light LCL implemented

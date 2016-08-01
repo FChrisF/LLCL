@@ -135,14 +135,6 @@
   {$DEFINE LLCL_OPT_DOUBLEBUFF}
 {$IFEND}
 
-{   LLCL_OPT_USERADIOGROUP   -   ExtCtrls.pas
-
-    RadioGroup class used in program
-
-    Notes: when defined, this permits to use the RadioGroup class.
-}
-//{$DEFINE LLCL_OPT_USERADIOGROUP}
-
 //------------------------------------------------------------------------------
 
 {

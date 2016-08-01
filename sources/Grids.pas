@@ -21,8 +21,6 @@ unit Grids;
   Copyright (c) 2008 Arnaud Bouchez - http://bouchez.info
   Portions Copyright (c) 2001 Paul Toth - http://tothpaul.free.fr
 
-   Version 1.02:
-    * Bug fix for ColCount and RowCount modification
    Version 1.01:
     * File creation.
     * TStringGrid implemented
@@ -766,7 +764,7 @@ begin
   if (Base-Value)<0 then TmpValue := Base;    // Sanity
   for i:=0 to pred(TmpValue) do
     // ListView_DeleteColumn(Handle, Base-i);
-    LLCL_SendMessage(Handle, LVM_DELETECOLUMN, pred(Base-i), 0);
+    LLCL_SendMessage(Handle, LVM_DELETECOLUMN, Base-i, 0);
 end;
 
 procedure TStringGrid.AddRows(Value: integer; Base: integer; UseDefRowHeight: boolean);
@@ -800,7 +798,7 @@ begin
   else
     for i:=0 to pred(TmpValue) do
       // ListView_DeleteItem(Handle, Base-i);
-      LLCL_SendMessage(Handle, LVM_DELETEITEM, pred(Base-i), 0);
+      LLCL_SendMessage(Handle, LVM_DELETEITEM, Base-i, 0);
 end;
 
 procedure TStringGrid.SetColCount(AValue: integer);
